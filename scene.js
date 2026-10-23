@@ -259,23 +259,23 @@ for (const lc of LANES) for (const side of [-1, 1]) {
   }
 }
 
-// RFID reader pole at the front of the visitor's lane (right side, keeps the walk path clear)
-const reader = new THREE.Group();
-reader.position.set(POD_X, 0, -1.65);
-addEdges(mesh(new THREE.BoxGeometry(0.09, 2.05, 0.09), M.poleGray, 0, 1.025, 0, reader));
-addEdges(mesh(new THREE.BoxGeometry(0.3, 0.03, 0.3), M.poleGray, 0, 0.015, 0, reader));
-const readerHead = new THREE.Group();
-readerHead.position.set(0, 2.27, 0);
-readerHead.rotation.y = -0.35;
-reader.add(readerHead);
-addEdges(mesh(new THREE.BoxGeometry(0.56, 0.56, 0.14), M.readerGray, 0, 0, 0, readerHead));
+// RFID reader built into the gate: no separate pole. Each pod of the visitor's lane carries a
+// small tilted status display at the lane entrance; the antenna sits inside the gate itself.
+const readerHead = new THREE.Group();            // virtual antenna point (source of the RFID waves)
+readerHead.position.set(0, POD_H + 0.12, -0.55);
+scene.add(readerHead);
 const screenTex = canvasTex(256, 256, () => {});
 const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
-for (const s of [-1, 1]) {
-  const p = mesh(new THREE.PlaneGeometry(0.46, 0.46), screenMat, 0, 0, s * 0.0715, readerHead);
-  if (s < 0) p.rotation.y = Math.PI;
+for (const sd of [-1, 1]) {
+  const d = new THREE.Group();
+  d.position.set(sd * POD_X, POD_H, -0.42);
+  d.rotation.x = 0.4; // face tilts up toward the approaching visitor (-z)
+  addEdges(mesh(new THREE.BoxGeometry(0.3, 0.3, 0.05), M.readerGray, 0, 0.16, 0, d));
+  mesh(new THREE.BoxGeometry(0.1, 0.04, 0.12), M.readerGray, 0, 0.02, 0.02, d);
+  const p = mesh(new THREE.PlaneGeometry(0.25, 0.25), screenMat, 0, 0.16, -0.0265, d);
+  p.rotation.y = Math.PI;
+  scene.add(d);
 }
-scene.add(reader);
 
 let lastScreenKey = '';
 function drawScreen(state, t) {
