@@ -38,9 +38,9 @@ if (!RENDER_MODE) {
 }
 
 const scene = new THREE.Scene();
-const BG = new THREE.Color('#dde8f0');
+const BG = new THREE.Color('#cfe2f1');
 scene.background = BG;
-scene.fog = new THREE.Fog(BG, 38, 90);
+scene.fog = new THREE.Fog(BG, 40, 110);
 
 const camera = new THREE.PerspectiveCamera(38, WIDTH / HEIGHT, 0.1, 200);
 
@@ -120,23 +120,28 @@ function canvasTex(w, h, draw) {
   return tex;
 }
 
-// ---------------------------------------------------------------- floor (Tinkercad-style grid)
+// ---------------------------------------------------------------- floor (polished lobby tiles)
 {
   const tex = canvasTex(1024, 1024, (g, w, h) => {
-    g.fillStyle = '#eef4f9'; g.fillRect(0, 0, w, h);
-    g.strokeStyle = '#c6dae8'; g.lineWidth = 2;
-    for (let i = 0; i <= 10; i++) {
-      const p = (i / 10) * w;
-      g.beginPath(); g.moveTo(p, 0); g.lineTo(p, h); g.stroke();
-      g.beginPath(); g.moveTo(0, p); g.lineTo(w, p); g.stroke();
+    const n = 4, ts = w / n;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const v = 232 + ((i * 7 + j * 13) % 5) * 2;
+      g.fillStyle = `rgb(${v},${v - 3},${v - 8})`;
+      g.fillRect(i * ts, j * ts, ts, ts);
+      const gr = g.createLinearGradient(i * ts, j * ts, (i + 1) * ts, (j + 1) * ts);
+      gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(1, 'rgba(0,0,0,0.03)');
+      g.fillStyle = gr; g.fillRect(i * ts, j * ts, ts, ts);
     }
-    g.strokeStyle = '#95bcd6'; g.lineWidth = 5;
-    g.strokeRect(0, 0, w, h);
+    g.strokeStyle = '#cdc6bc'; g.lineWidth = 3;
+    for (let i = 0; i <= n; i++) {
+      g.beginPath(); g.moveTo(i * ts, 0); g.lineTo(i * ts, h); g.stroke();
+      g.beginPath(); g.moveTo(0, i * ts); g.lineTo(w, i * ts); g.stroke();
+    }
   });
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(80, 80);
+  tex.repeat.set(200 / 4.8, 200 / 4.8);
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  const floor = mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
+  const floor = mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.3 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   floor.userData.receiveOnly = true;
@@ -307,36 +312,158 @@ const TABLE = { x: -1.25, z: -5.0, top: 1.0 };
 }
 
 // ---------------------------------------------------------------- building context
+// Layout (z grows into the company): street/outside (z < -14) -> glass entrance with
+// automatic sliding doors (z = -14) -> lobby with security checkpoint -> AYVETO gate (z = 0)
+// -> office interior with reception, lounge, elevators and logo wall (z = 23).
+const entranceDoors = [];
 {
-  // entrance facade behind the checkpoint (outside → lobby)
-  const fz = -14;
-  scene.add(mesh(new THREE.BoxGeometry(14, 4.2, 0.3), M.wall, -9.2, 2.1, fz));
-  scene.add(mesh(new THREE.BoxGeometry(14, 4.2, 0.3), M.wall, 8.4, 2.1, fz));
-  scene.add(mesh(new THREE.BoxGeometry(3.4, 1.0, 0.3), M.wall, -0.4, 3.7, fz));
-  for (const x of [-2.1, 1.3]) scene.add(mesh(new THREE.BoxGeometry(0.12, 3.2, 0.34), M.steel, x, 1.6, fz));
-  for (const x of [-2.7, 1.9]) { const d = mesh(new THREE.BoxGeometry(1.1, 3.1, 0.04), M.glassPartition, x, 1.55, fz + 0.25); d.userData.noShadow = true; scene.add(d); }
-  // interior lobby
-  const wz = 23;
-  scene.add(mesh(new THREE.BoxGeometry(34, 5, 0.3), M.wall, 0, 2.5, wz));
-  const logo = mesh(new THREE.PlaneGeometry(5.2, 1.3), new THREE.MeshStandardMaterial({ map: logoTex, roughness: 0.5 }), 0, 2.35, wz - 0.16);
+  const B = {
+    wallWarm: mat('#f3f0ea', { roughness: 0.85 }),
+    wood: mat('#b07a48', { roughness: 0.6 }),
+    woodDark: mat('#8a5a33', { roughness: 0.6 }),
+    frame: mat('#3b4552', { roughness: 0.35, metalness: 0.5 }),
+    curtain: new THREE.MeshStandardMaterial({ color: '#9fc6de', roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }),
+    paving: mat('#b8bcc0', { roughness: 0.95 }),
+    road: mat('#5d6268', { roughness: 0.95 }),
+    stripe: mat('#f2f2f2', { roughness: 0.8 }),
+    grass: mat('#8fc27a', { roughness: 1 }),
+    trunk: mat('#7a5534', { roughness: 0.9 }),
+    tower: mat('#c9d6e2', { roughness: 0.4, metalness: 0.2 }),
+    towerGlass: mat('#8fb3cf', { roughness: 0.2, metalness: 0.3 }),
+    sofa: mat('#36506b', { roughness: 0.8 }),
+    screen: null,
+  };
+  const add = (geo, m, x, y, z, edges = false) => { const o = mesh(geo, m, x, y, z); if (edges) addEdges(o, 30, new THREE.LineBasicMaterial({ color: '#8d8478', transparent: true, opacity: 0.6 })); scene.add(o); return o; };
+  const noShadow = o => { o.userData.noShadow = true; return o; };
+  const WALL_H = 6, FZ = -14, SIDE = 10, BACK = 23;
+
+  // ---- outside: paving, street, trees, distant office towers
+  const pav = add(new THREE.PlaneGeometry(120, 60), B.paving, 0, 0.003, FZ - 30.15); pav.rotation.x = -Math.PI / 2; pav.userData.receiveOnly = true;
+  const road = add(new THREE.PlaneGeometry(120, 7), B.road, 0, 0.006, FZ - 13); road.rotation.x = -Math.PI / 2; road.userData.receiveOnly = true;
+  for (let x = -40; x < 40; x += 4) { const st = add(new THREE.PlaneGeometry(2, 0.18), B.stripe, x, 0.008, FZ - 13); st.rotation.x = -Math.PI / 2; st.userData.receiveOnly = true; }
+  for (const x of [-9, -5, 4, 8]) { const gr = add(new THREE.PlaneGeometry(3, 2.2), B.grass, x, 0.007, FZ - 4.5); gr.rotation.x = -Math.PI / 2; gr.userData.receiveOnly = true; }
+  const tree = (x, z, h = 1) => {
+    add(new THREE.CylinderGeometry(0.12 * h, 0.16 * h, 1.8 * h, 12), B.trunk, x, 0.9 * h, z);
+    add(new THREE.IcosahedronGeometry(1.1 * h, 1), M.leaf, x, 2.4 * h, z);
+    add(new THREE.IcosahedronGeometry(0.8 * h, 1), M.leaf, x + 0.5 * h, 2.0 * h, z + 0.3 * h);
+  };
+  for (const x of [-9, -5, 4, 8]) tree(x, FZ - 4.5);
+  for (let x = -30; x <= 30; x += 7) tree(x + 2, FZ - 19, 1.2);
+  // canopy over the entrance (outside)
+  add(new THREE.BoxGeometry(5.4, 0.18, 2.6), B.frame, -0.45, 3.6, FZ - 1.3);
+  for (const x of [-2.9, 2.0]) add(new THREE.CylinderGeometry(0.07, 0.07, 3.6, 12), B.frame, x, 1.8, FZ - 2.5);
+  for (const [x, z, w, h, d] of [[-24, -48, 10, 22, 10], [-8, -55, 12, 30, 10], [10, -50, 9, 18, 9], [26, -46, 11, 26, 10]]) {
+    add(new THREE.BoxGeometry(w, h, d), B.tower, x, h / 2, z);
+    for (let y = 2; y < h - 1; y += 2.4) add(new THREE.BoxGeometry(w + 0.05, 1.1, d + 0.05), B.towerGlass, x, y, z);
+  }
+
+  // ---- glass entrance facade with automatic sliding doors
+  const DX = -0.45, DW = 2.4; // door opening centred on the visitor's path
+  const curtainSeg = (x0, x1) => {
+    const w = x1 - x0, cx = (x0 + x1) / 2;
+    noShadow(add(new THREE.BoxGeometry(w, WALL_H, 0.04), B.curtain, cx, WALL_H / 2, FZ));
+    for (let x = x0; x <= x1 + 1e-6; x += w / Math.max(1, Math.round(w / 2))) add(new THREE.BoxGeometry(0.08, WALL_H, 0.12), B.frame, x, WALL_H / 2, FZ);
+  };
+  curtainSeg(-SIDE, DX - DW / 2);
+  curtainSeg(DX + DW / 2, SIDE);
+  for (const y of [0.05, 3.2, WALL_H - 0.05]) add(new THREE.BoxGeometry(SIDE * 2, 0.1, 0.14), B.frame, 0, y, FZ);
+  noShadow(add(new THREE.BoxGeometry(DW, WALL_H - 3.2, 0.04), B.curtain, DX, (WALL_H + 3.2) / 2, FZ));
+  for (const sd of [-1, 1]) {
+    const d = new THREE.Group();
+    d.position.set(DX + sd * DW / 4, 0, FZ + 0.12);
+    const panel = mesh(new THREE.BoxGeometry(DW / 2, 3.1, 0.03), B.curtain, 0, 1.6, 0, d); panel.userData.noShadow = true;
+    mesh(new THREE.BoxGeometry(DW / 2, 0.06, 0.06), B.frame, 0, 0.05, 0, d);
+    mesh(new THREE.BoxGeometry(0.05, 3.1, 0.06), B.frame, -sd * DW / 4, 1.6, 0, d);
+    mesh(new THREE.BoxGeometry(0.04, 0.6, 0.06), M.steel, -sd * (DW / 4 - 0.12), 1.1, 0.04, d);
+    scene.add(d);
+    entranceDoors.push({ obj: d, closedX: d.position.x, dir: sd });
+  }
+  add(new THREE.BoxGeometry(DW + 0.4, 0.3, 0.3), B.frame, DX, 3.3, FZ + 0.1); // door operator housing
+  // AYVETO sign above the entrance (inside, facing the lobby)
+  const sign = add(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshStandardMaterial({ map: logoTex, roughness: 0.4 }), DX, 4.55, FZ + 0.1);
+  void sign;
+  // entrance mat
+  const matIn = add(new THREE.PlaneGeometry(3.0, 1.8), mat('#4a4f56', { roughness: 1 }), DX, 0.006, FZ + 1.1); matIn.rotation.x = -Math.PI / 2; matIn.userData.receiveOnly = true;
+
+  // ---- side walls (warm white with a wooden accent band)
+  for (const sd of [-1, 1]) {
+    const x = sd * SIDE, len = BACK - FZ, cz = (BACK + FZ) / 2;
+    add(new THREE.BoxGeometry(0.3, WALL_H, len), B.wallWarm, x, WALL_H / 2, cz);
+    add(new THREE.BoxGeometry(0.06, 1.2, len), B.wood, x - sd * 0.17, 1.6, cz);
+    add(new THREE.BoxGeometry(0.08, 0.12, len), B.woodDark, x - sd * 0.18, 0.06, cz);
+  }
+  // framed artwork on the left wall, digital welcome screen on the right wall
+  const artTex = canvasTex(256, 192, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#2b6c9e'); gr.addColorStop(1, '#9fd0e8');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,255,255,0.55)'; g.beginPath(); g.arc(w * 0.7, h * 0.35, 30, 0, 7); g.fill();
+    g.fillStyle = '#1f4f73'; g.beginPath(); g.moveTo(0, h); g.lineTo(w * 0.35, h * 0.45); g.lineTo(w * 0.65, h); g.fill();
+  });
+  for (const z of [-9, -3, 8, 16]) {
+    add(new THREE.BoxGeometry(0.06, 1.5, 2.1), B.frame, -SIDE + 0.2, 3.3, z);
+    const a = add(new THREE.PlaneGeometry(1.95, 1.35), new THREE.MeshStandardMaterial({ map: artTex, roughness: 0.5 }), -SIDE + 0.24, 3.3, z); a.rotation.y = Math.PI / 2;
+  }
+  add(new THREE.BoxGeometry(0.1, 2.0, 3.6), mat('#111820', { roughness: 0.3 }), SIDE - 0.2, 3.2, -6);
+  const scr = add(new THREE.PlaneGeometry(3.4, 1.85), new THREE.MeshBasicMaterial({ map: logoTex }), SIDE - 0.26, 3.2, -6); scr.rotation.y = -Math.PI / 2;
+
+  // ---- waiting lounge in the lobby (right side, before the security area)
+  const sofa = (x, z, ry) => {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+    mesh(new THREE.BoxGeometry(2.2, 0.42, 0.85), B.sofa, 0, 0.21, 0, g);
+    mesh(new THREE.BoxGeometry(2.2, 0.5, 0.2), B.sofa, 0, 0.62, -0.33, g);
+    for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.18, 0.62, 0.85), B.sofa, sx * 1.01, 0.31, 0, g);
+    scene.add(g);
+  };
+  sofa(7.6, -9.5, -Math.PI / 2);
+  sofa(5.2, -11.6, 0);
+  add(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 32), B.wood, 5.6, 0.45, -9.3);
+  add(new THREE.CylinderGeometry(0.06, 0.06, 0.42, 12), B.frame, 5.6, 0.21, -9.3);
+  const rug = add(new THREE.PlaneGeometry(4.2, 3.4), mat('#c9b79c', { roughness: 1 }), 6.2, 0.006, -9.8); rug.rotation.x = -Math.PI / 2; rug.userData.receiveOnly = true;
+
+  // ---- office interior beyond the gate
+  add(new THREE.BoxGeometry(SIDE * 2, WALL_H, 0.3), B.wallWarm, 0, WALL_H / 2, BACK);
+  // wooden feature wall with the AYVETO logo
+  add(new THREE.BoxGeometry(7.2, 4.2, 0.12), B.wood, 0, 2.6, BACK - 0.2);
+  for (let x = -3.4; x <= 3.4; x += 0.4) add(new THREE.BoxGeometry(0.04, 4.2, 0.03), B.woodDark, x, 2.6, BACK - 0.27);
+  const logo = mesh(new THREE.PlaneGeometry(5.2, 1.3), new THREE.MeshStandardMaterial({ map: logoTex, roughness: 0.5 }), 0, 3.2, BACK - 0.3);
   logo.rotation.y = Math.PI;
   scene.add(logo);
-  for (const x of [-3.6, 3.6]) scene.add(mesh(new THREE.BoxGeometry(1.4, 2.0, 0.06), M.steel, x, 1.0, wz - 0.18));
+  // elevators either side of the feature wall
+  for (const x of [-6.2, -4.6, 4.6, 6.2]) {
+    add(new THREE.BoxGeometry(1.4, 2.5, 0.08), B.frame, x, 1.25, BACK - 0.2);
+    add(new THREE.BoxGeometry(1.2, 2.35, 0.06), M.steel, x, 1.18, BACK - 0.24);
+    add(new THREE.BoxGeometry(0.02, 2.35, 0.08), B.frame, x, 1.18, BACK - 0.25);
+    add(new THREE.BoxGeometry(0.4, 0.12, 0.04), new THREE.MeshStandardMaterial({ color: '#111', emissive: '#ffb347', emissiveIntensity: 1.2 }), x, 2.75, BACK - 0.24);
+  }
   // pillars
   for (const [x, z] of [[-6.5, 7], [6.5, 7], [-6.5, 15], [6.5, 15]]) {
-    addEdges(mesh(new THREE.CylinderGeometry(0.38, 0.38, 5, 32), M.wall, x, 2.5, z), 35, new THREE.LineBasicMaterial({ color: '#9fb0c0' })).userData.tag = 'pillar';
+    add(new THREE.CylinderGeometry(0.38, 0.38, WALL_H, 32), B.wallWarm, x, WALL_H / 2, z);
+    add(new THREE.CylinderGeometry(0.4, 0.4, 0.15, 32), B.woodDark, x, 0.075, z);
   }
-  // reception desk
+  // reception desk with monitors
   const desk = new THREE.Group(); desk.position.set(4.3, 0, 11); desk.rotation.y = -0.35;
-  addEdges(mesh(new THREE.BoxGeometry(3.2, 1.1, 0.8), M.wall, 0, 0.55, 0, desk));
+  addEdges(mesh(new THREE.BoxGeometry(3.2, 1.1, 0.8), B.wallWarm, 0, 0.55, 0, desk));
   mesh(new THREE.BoxGeometry(3.22, 0.14, 0.82), M.navy, 0, 0.75, 0, desk);
-  mesh(new THREE.BoxGeometry(3.4, 0.06, 1.0), M.wallDark, 0, 1.13, 0, desk);
+  mesh(new THREE.BoxGeometry(3.4, 0.06, 1.0), B.wood, 0, 1.13, 0, desk);
+  for (const mx of [-0.7, 0.7]) {
+    mesh(new THREE.BoxGeometry(0.55, 0.34, 0.03), mat('#151b22', { roughness: 0.3 }), mx, 1.42, 0.25, desk).rotation.y = Math.PI;
+    mesh(new THREE.BoxGeometry(0.05, 0.2, 0.05), B.frame, mx, 1.24, 0.27, desk);
+  }
   scene.add(desk);
+  // lounge chairs and coffee table in the office area (left)
+  for (const [x, z, ry] of [[-4.6, 10, Math.PI / 2], [-3.0, 11.6, Math.PI]]) {
+    const c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = ry;
+    mesh(new THREE.BoxGeometry(0.85, 0.42, 0.85), mat('#d58b3c', { roughness: 0.8 }), 0, 0.21, 0, c);
+    mesh(new THREE.BoxGeometry(0.85, 0.5, 0.16), mat('#d58b3c', { roughness: 0.8 }), 0, 0.62, -0.35, c);
+    scene.add(c);
+  }
+  add(new THREE.CylinderGeometry(0.45, 0.45, 0.05, 32), B.wood, -3.2, 0.42, 9.8);
+  add(new THREE.CylinderGeometry(0.05, 0.05, 0.4, 12), B.frame, -3.2, 0.2, 9.8);
   // walkway runner leading into the company
-  const runner = mesh(new THREE.PlaneGeometry(1.5, 19), new THREE.MeshStandardMaterial({ color: '#2a6ea8', roughness: 0.9, transparent: true, opacity: 0.09 }), 0, 0.004, 11.4);
+  const runner = mesh(new THREE.PlaneGeometry(1.6, 21), mat('#2c4a66', { roughness: 1 }), 0, 0.005, 12.3);
   runner.rotation.x = -Math.PI / 2; runner.userData.receiveOnly = true; scene.add(runner);
   // plants
-  for (const [x, z] of [[-4.2, 5], [3.4, 4.2], [-4.8, 13], [-2.8, 20.5], [2.8, 20.5]]) {
+  for (const [x, z] of [[-4.2, 5], [3.4, 4.2], [-8.6, -12.6], [3.0, -12.8], [-4.8, 15], [-2.8, 21.5], [2.8, 21.5], [8.6, 18]]) {
     const p = new THREE.Group(); p.position.set(x, 0, z);
     addEdges(mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.55, 28), M.plantPot, 0, 0.275, 0, p), 35);
     for (const [lx, ly, lz, r] of [[0, 0.95, 0, 0.38], [0.18, 0.78, 0.12, 0.26], [-0.16, 0.8, -0.1, 0.27], [0.05, 1.25, -0.05, 0.24]])
@@ -376,6 +503,41 @@ function buildUser() {
   mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.12, 16), M.brown, 0, HIP + 0.74, 0, body);
   const head = mesh(new THREE.SphereGeometry(0.33, 36, 28), M.brown, 0, HIP + 1.12, 0, body);
   head.scale.set(1, 1.32, 1);
+  {
+    const HY = HIP + 1.12, R = 0.33, SY = 1.32;
+    const surfZ = (x, y) => R * Math.sqrt(Math.max(0, 1 - (x / R) ** 2 - (y / (R * SY)) ** 2));
+    const white = mat('#ffffff', { roughness: 0.25 });
+    const iris = mat('#2a1a10', { roughness: 0.2 });
+    const browM = mat('#24150c', { roughness: 0.6 });
+    const noseM = mat('#7b4d26', { roughness: 0.55 });
+    const lipM = mat('#5b1f16', { roughness: 0.5 });
+    const cheekM = mat('#b8664a', { roughness: 0.7 });
+    for (const sd of [1, -1]) {
+      const ex = sd * 0.115, ey = 0.07, ez = surfZ(ex, ey);
+      const eye = mesh(new THREE.SphereGeometry(0.062, 20, 16), white, ex, HY + ey, ez - 0.012, body);
+      eye.scale.set(1, 1.25, 0.6);
+      const pupil = mesh(new THREE.SphereGeometry(0.034, 16, 12), iris, ex - sd * 0.004, HY + ey - 0.008, ez + 0.022, body);
+      pupil.scale.set(1, 1.15, 0.55);
+      mesh(new THREE.SphereGeometry(0.011, 8, 6), white, ex + 0.012, HY + ey + 0.008, ez + 0.04, body);
+      const by = ey + 0.12;
+      const brow = mesh(new THREE.BoxGeometry(0.1, 0.02, 0.025), browM, ex, HY + by, surfZ(ex, by) + 0.003, body);
+      brow.rotation.set(-0.35, sd * 0.35, sd * 0.12);
+      const cx = sd * 0.19, cy = -0.07;
+      const cheek = mesh(new THREE.SphereGeometry(0.045, 14, 10), cheekM, cx, HY + cy, surfZ(cx, cy) - 0.018, body);
+      cheek.scale.set(1, 0.7, 0.45);
+    }
+    const nose = mesh(new THREE.SphereGeometry(0.048, 16, 12), noseM, 0, HY - 0.03, surfZ(0, -0.03) + 0.012, body);
+    nose.scale.set(0.85, 1, 0.85);
+    // smile: lower half of a torus, tilted to follow the curve of the head
+    const my = -0.13;
+    // smile: a chain of beads following the head surface (a U-shaped curve)
+    const bead = new THREE.SphereGeometry(0.019, 10, 8);
+    for (let i = 0; i <= 22; i++) {
+      const a = Math.PI * (0.12 + 0.76 * i / 22);           // 0.12π..0.88π
+      const x = -Math.cos(a) * 0.105, y = my + 0.03 - Math.sin(a) * 0.065;
+      mesh(bead, lipM, x, HY + y, surfZ(x, y) - 0.004, body);
+    }
+  }
   for (const s of [1, -1]) {
     const shoulder = limb(0.085, 0.075, 0.36, M.yellow, body, s * 0.345, HIP + 0.6, 0);
     mesh(new THREE.SphereGeometry(0.088, 16, 12), M.yellow, 0, 0, 0, shoulder);
@@ -700,6 +862,10 @@ function update(t) {
   fx.successRing.scale.setScalar(0.4 + sr * 1.8);
   fx.successRing.material.opacity = t >= T.verified ? (1 - sr) * 0.9 : 0;
 
+  // ---------------- entrance doors (visitor has just come in; they slide shut behind)
+  const doorOpen = 1 - smoother(0.8, 2.6, t);
+  for (const d of entranceDoors) d.obj.position.x = d.closedX + d.dir * 1.15 * doorOpen;
+
   // ---------------- camera
   const ch = i => camChannel(t, i);
   const follow = clamp(ch(7));
@@ -718,6 +884,12 @@ function update(t) {
 
 function renderAt(t) {
   update(t);
+  if (location.search.includes('closeup')) { // debug-only face close-up
+    const hp = new THREE.Vector3(); user.root.getWorldPosition(hp); hp.y += 1.95;
+    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(user.root.getWorldQuaternion(new THREE.Quaternion()));
+    camera.position.copy(hp).addScaledVector(fwd, 2.2).add(new THREE.Vector3(0.4, 0.2, 0));
+    camera.lookAt(hp);
+  }
   renderer.render(scene, camera);
 }
 
