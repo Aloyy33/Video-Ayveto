@@ -2,7 +2,7 @@
 
 **Video:** [`ayveto_access_process.mp4`](ayveto_access_process.mp4) — 24 s, 1920×1080 (16:9), 30 fps, H.264, no audio.
 
-The video shows the AYVETO company access flow: the visitor arrives with their own ID card → the security guard inspects their bag → the visitor walks to the AYVETO gate → the RFID card is read automatically (no tap) → a green indicator shows success → the gate opens → the visitor walks into the company and the gate closes behind them.
+The video shows the AYVETO company access flow: the visitor arrives with their own ID card → the security guard inspects their bag → the visitor walks toward the AYVETO gate → the RFID card is detected automatically from a distance (no tap) → a green indicator shows success and the gate opens **before the visitor arrives** → the visitor walks straight through without stopping, into the company, and the gate closes behind them.
 
 ![Preview](contact_sheet.png)
 

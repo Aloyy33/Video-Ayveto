@@ -518,11 +518,7 @@ const SPEED_KEYS = [
   [2.8, 4.0, 1.6, 0.0],   // slow down, stop in front of the guard
   [4.0, 11.4, 0.0, 0.0],  // bag inspection
   [11.4, 12.2, 0.0, 1.5], // set off toward the gate
-  [12.2, 13.35, 1.5, 1.5],
-  [13.35, 14.35, 1.5, 0.0], // arrive at the lane entrance, wait (no tap)
-  [14.35, 15.8, 0.0, 0.0],  // verification + gate opening
-  [15.8, 16.6, 0.0, 1.6],   // walk through
-  [16.6, 99, 1.6, 1.6],     // continue into the company
+  [12.2, 99, 1.5, 1.5],   // one continuous walk: gate -> inside the company (never stops)
 ];
 function speedAt(t) {
   for (const [a, b, va, vb] of SPEED_KEYS) if (t >= a && t < b) return lerp(va, vb, (1 - Math.cos(Math.PI * (t - a) / (b - a))) / 2);
@@ -549,9 +545,11 @@ function pathAt(s) {
 
 // Key moments
 const T = {
-  scanStart: 12.5, verified: 14.9,
-  openStart: 15.0, openEnd: 16.0,
-  closeStart: 18.8, closeEnd: 19.7,
+  // the card is detected from a distance as soon as the visitor leaves the checkpoint,
+  // so the gate is fully open well before they reach it
+  scanStart: 11.6, verified: 12.9,
+  openStart: 13.0, openEnd: 13.9,
+  closeStart: 16.6, closeEnd: 17.5,
 };
 const TABLE_SPOT = new THREE.Vector3(TABLE.x + 0.13, TABLE.top + 0.37, -4.68);
 
@@ -560,11 +558,11 @@ const CAM_KEYS = [
   [0.0, -0.32, 7.2, 9.8, -0.6, 0.5, -4.2, 0],     // reference-image framing: gate in front, checkpoint behind
   [4.0, -0.3, 6.6, 9.6, -0.8, 0.8, -4.3, 0],      // ease toward the inspection
   [10.5, -0.27, 6.4, 9.4, -0.8, 0.8, -4.1, 0],
-  [13.6, -0.35, 5.6, 8.8, -0.4, 0.8, -2.4, 0],    // checkpoint + gate + visitor in frame
-  [15.6, -0.5, 5.2, 8.6, -0.2, 0.8, -1.2, 0.2],
-  [18.0, -1.2, 4.8, 8.0, 0, 0.9, 0.6, 0.45],      // crossing the gate
-  [19.8, -2.2, 3.9, 6.6, 0, 1.1, 2.5, 0.8],       // gate closing behind the visitor
-  [22.0, -Math.PI + 0.04, 3.0, 5.4, 0, 1.2, 6, 1], // follow shot from behind
+  [12.0, -0.33, 5.8, 9.0, -0.5, 0.8, -3.0, 0],    // checkpoint + gate + visitor in frame (detection)
+  [13.8, -0.5, 5.2, 8.6, -0.2, 0.8, -1.2, 0.25],  // gate already open as the visitor arrives
+  [15.6, -1.2, 4.8, 8.0, 0, 0.9, 0.6, 0.5],       // walking straight through
+  [17.4, -2.2, 3.9, 6.6, 0, 1.1, 2.5, 0.8],       // gate closing behind the visitor
+  [19.8, -Math.PI + 0.04, 3.0, 5.4, 0, 1.2, 6, 1], // follow shot from behind
   [24.5, -Math.PI, 2.9, 5.2, 0, 1.2, 10, 1],
 ];
 function camChannel(t, ch) {
@@ -662,7 +660,7 @@ function update(t) {
   else if (scanning) { ledMat.emissive.set('#3fb0ff'); ledMat.emissiveIntensity = 0.6 + 0.9 * (0.5 + 0.5 * Math.sin(t * 9)); }
   else { ledMat.emissive.set('#6fa9d6'); ledMat.emissiveIntensity = 0.35; }
   fx.gateLight.color.set(granted ? '#35ff6e' : '#3fb0ff');
-  fx.gateLight.intensity = granted ? 2.2 * (1 - smooth(18.6, 19.7, t)) : 1.8 * scanFade;
+  fx.gateLight.intensity = granted ? 2.2 * (1 - smooth(16.4, 17.5, t)) : 1.8 * scanFade;
 
   const flapU = smoother(T.openStart, T.openEnd, t) * (1 - smoother(T.closeStart, T.closeEnd, t));
   for (const f of gate.flaps) f.pivot.rotation.y = f.openAngle * flapU;
