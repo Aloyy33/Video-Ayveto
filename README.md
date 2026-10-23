@@ -4,7 +4,7 @@
 
 The video shows the AYVETO company access flow: the visitor arrives with their own ID card → the security guard inspects their bag → the visitor walks toward the AYVETO gate → the RFID card is detected automatically from a distance (no tap) → a green indicator shows success and the gate opens **before the visitor arrives** → the visitor walks straight through without stopping, into the company, and the gate closes behind them.
 
-The visitor character has short curly hair and a friendly face (eyes, eyebrows, nose, cheeks and a smile). The guard at the checkpoint wears a navy security uniform with a peaked cap, badge, SECURITY name tab and back patch, epaulettes and a radio. The setting is a modern company building: a street with trees and office towers outside, a glass facade with automatic sliding doors, a lobby with a waiting area, and the office interior behind the gate (reception, elevators and the AYVETO logo wall).
+Both characters have realistic human proportions (about 1.78 m tall, with a natural head-to-body ratio, shoulders, hands and shoes). The visitor has a natural face (eyes with eyelids, eyebrows, nose, ears and a closed-lip smile) and short curly hair. The guard wears a navy security uniform with a peaked cap, badge, SECURITY name tab and back patch, epaulettes, belt and radio. The security line is a bank of 7 AYVETO speed-gate lanes with glass railings to the side walls; only the visitor's centre lane opens. The setting is a modern company building: a street with trees and office towers outside, a glass facade with automatic sliding doors, a lobby with a waiting area, and the office interior behind the gate (reception, elevators and the AYVETO logo wall).
 
 ![Preview](contact_sheet.png)
 
