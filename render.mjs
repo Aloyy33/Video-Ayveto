@@ -1,5 +1,5 @@
 // Renders the animation frame-by-frame in headless Chromium and encodes an MP4.
-//   node render.mjs                         -> ayveto_access_process.mp4 (1920x1080, 30 fps)
+//   node render.mjs                         -> ayveto_evakuasi_kebakaran.mp4 (1920x1080, 30 fps)
 //   node render.mjs --stills 0,5,14,20      -> PNG stills in ./stills (for quick review)
 //   node render.mjs --w 1280 --h 720 --fps 24 --out preview.mp4
 import http from 'node:http';
@@ -14,7 +14,7 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) =>
   return acc;
 }, []));
 const W = +(args.w || 1920), H = +(args.h || 1080), FPS = +(args.fps || 30);
-const OUT = args.out || 'ayveto_access_process.mp4';
+const OUT = args.out || 'ayveto_evakuasi_kebakaran.mp4';
 const root = path.dirname(new URL(import.meta.url).pathname);
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript' };

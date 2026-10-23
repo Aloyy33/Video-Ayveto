@@ -1,7 +1,11 @@
-// AYVETO company access process — deterministic Three.js animation.
+// AYVETO fire evacuation — deterministic Three.js animation.
+// A fire breaks out in the office; the alarm sounds, the gate system is switched off with every
+// lane wide open, and everyone (including the visitor in the yellow shirt) walks out through the
+// gates, the lobby and the entrance to the assembly point outside.
 // Every frame is a pure function of time `t` (seconds), so the same scene can be
 // played live in a browser or rendered frame-by-frame to video (see render.mjs).
 import * as THREE from 'three';
+import { runCrowd, sampler } from './crowd.mjs';
 
 const params = new URLSearchParams(location.search);
 const WIDTH = parseInt(params.get('w') || '1920', 10);
@@ -175,19 +179,20 @@ const logoTex = canvasTex(512, 128, (g, w, h) => {
 const POD_H = 1.05;
 const POD_X = 0.85;
 const gate = { pods: [], flaps: [], xMarks: [], checks: [], leds: [], glows: [] };
-const ledMat = new THREE.MeshStandardMaterial({ color: '#203040', emissive: '#6fa9d6', emissiveIntensity: 0.4 });
+const ledMat = new THREE.MeshStandardMaterial({ color: '#2a3138', emissive: '#000000', emissiveIntensity: 0 }); // off
 const checkMat = new THREE.MeshStandardMaterial({ color: '#1fbf4a', emissive: '#27e05a', emissiveIntensity: 1.2 });
 const glowDiscMat = new THREE.MeshBasicMaterial({ color: '#35ff6e', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
 
+const indicatorOffMat = mat('#4a4f56', { roughness: 0.5 }); // unlit indicator (gate system is off)
 function makeXMark(parent, x, z, active) {
   const grp = new THREE.Group();
   grp.position.set(x, POD_H + 0.004, z);
   for (const a of [Math.PI / 4, -Math.PI / 4]) {
     const o = mesh(new THREE.BoxGeometry(0.27, 0.006, 0.075), M.darkOutline, 0, 0, 0, grp); o.rotation.y = a;
-    const r = mesh(new THREE.BoxGeometry(0.245, 0.012, 0.05), M.red, 0, 0.002, 0, grp); r.rotation.y = a;
+    const r = mesh(new THREE.BoxGeometry(0.245, 0.012, 0.05), indicatorOffMat, 0, 0.002, 0, grp); r.rotation.y = a;
   }
   parent.add(grp);
-  if (!active) return;
+  return; // system off: no status lights
   gate.xMarks.push(grp);
   // green check (shown after successful verification)
   const chk = new THREE.Group();
@@ -205,7 +210,7 @@ function makeXMark(parent, x, z, active) {
   gate.checks.push(chk);
 }
 
-const ledIdleMat = new THREE.MeshStandardMaterial({ color: '#203040', emissive: '#6fa9d6', emissiveIntensity: 0.35 });
+const ledIdleMat = ledMat;
 function makePod(cx, active) {
   const g = new THREE.Group();
   g.position.set(cx, 0, 0);
@@ -246,7 +251,8 @@ for (const lc of LANES) for (const side of [-1, 1]) {
   panel.userData.noShadow = true;
   mesh(new THREE.BoxGeometry(0.03, 0.66, 0.04), M.steel, dir * 0.015, 0.32, 0, pivot);
   scene.add(pivot);
-  if (lc === 0) gate.flaps.push({ pivot, openAngle: side < 0 ? -Math.PI / 2 : Math.PI / 2 });
+  pivot.rotation.y = side < 0 ? -Math.PI / 2 : Math.PI / 2; // emergency release: every lane stays wide open
+  gate.flaps.push(pivot);
 }
 // glass railings from the outer pods to the side walls, closing off the security line
 {
@@ -261,9 +267,6 @@ for (const lc of LANES) for (const side of [-1, 1]) {
 
 // RFID reader built into the gate: no separate pole. Each pod of the visitor's lane carries a
 // small tilted status display at the lane entrance; the antenna sits inside the gate itself.
-const readerHead = new THREE.Group();            // virtual antenna point (source of the RFID waves)
-readerHead.position.set(0, POD_H + 0.12, -0.55);
-scene.add(readerHead);
 const screenTex = canvasTex(256, 256, () => {});
 const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
 for (const sd of [-1, 1]) {
@@ -277,56 +280,13 @@ for (const sd of [-1, 1]) {
   scene.add(d);
 }
 
-let lastScreenKey = '';
-function drawScreen(state, t) {
-  const key = state === 'scan' ? `scan${Math.floor(t * 30)}` : state;
-  if (key === lastScreenKey) return;
-  lastScreenKey = key;
-  const { ctx: g } = screenTex.userData;
-  const w = 256, c = 128;
-  const bg = g.createLinearGradient(0, 0, 0, w);
-  if (state === 'ok') { bg.addColorStop(0, '#0c5a2a'); bg.addColorStop(1, '#073d1c'); }
-  else { bg.addColorStop(0, '#0f3b5f'); bg.addColorStop(1, '#082338'); }
-  g.fillStyle = bg; g.fillRect(0, 0, w, w);
-  g.fillStyle = '#ffffff'; g.font = 'bold 26px "Noto Sans", sans-serif'; g.textAlign = 'center';
-  g.fillText('AYVETO', c, 40);
-  g.lineCap = 'round';
-  if (state === 'ok') {
-    g.fillStyle = '#22d35b'; g.beginPath(); g.arc(c, 145, 62, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#ffffff'; g.lineWidth = 16;
-    g.beginPath(); g.moveTo(c - 30, 147); g.lineTo(c - 8, 170); g.lineTo(c + 32, 122); g.stroke();
-  } else {
-    const active = state === 'scan';
-    // RFID waves icon
-    for (let i = 0; i < 3; i++) {
-      const phase = active ? (t * 2.2 - i * 0.33) % 1 : 1;
-      g.strokeStyle = active ? `rgba(80,180,255,${0.35 + 0.65 * (1 - Math.abs(phase - 0.5) * 2)})` : 'rgba(150,180,205,0.75)';
-      g.lineWidth = 9;
-      g.beginPath(); g.arc(c - 30, 150, 26 + i * 24, -Math.PI / 3.2, Math.PI / 3.2); g.stroke();
-    }
-    g.fillStyle = active ? '#5fc0ff' : '#9fb7cc';
-    g.fillRect(c - 62, 120, 26, 60);
-    if (active) { // spinner
-      g.strokeStyle = '#5fc0ff'; g.lineWidth = 6;
-      const a = t * 6;
-      g.beginPath(); g.arc(c, 145, 92, a, a + Math.PI * 0.6); g.stroke();
-    }
-  }
-  screenTex.needsUpdate = true;
-}
-
-
-// ---------------------------------------------------------------- security checkpoint table
-const TABLE = { x: -1.25, z: -5.0, top: 1.0 };
+// gate system is off: the status displays are dark
 {
-  const t = new THREE.Group();
-  t.position.set(TABLE.x, 0, TABLE.z);
-  addEdges(mesh(new THREE.BoxGeometry(0.7, 0.07, 1.45), M.tableTop, 0, TABLE.top - 0.035, 0, t), 30, edgeMatSoft);
-  for (const [lx, lz] of [[-0.29, -0.66], [0.29, -0.66], [-0.29, 0.66], [0.29, 0.66]])
-    addEdges(mesh(new THREE.BoxGeometry(0.07, TABLE.top - 0.07, 0.07), M.tableLeg, lx, (TABLE.top - 0.07) / 2, lz, t), 30, edgeMatSoft);
-  mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.02, 32), M.darkOutline, -0.12, TABLE.top + 0.01, -0.45, t);
-  mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.05, 32), M.red, -0.12, TABLE.top + 0.04, -0.45, t);
-  scene.add(t);
+  const { ctx: g } = screenTex.userData;
+  g.fillStyle = '#07090b'; g.fillRect(0, 0, 256, 256);
+  const gr = g.createLinearGradient(0, 0, 256, 256); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  screenTex.needsUpdate = true;
 }
 
 // reception desk in the lobby, before the gate (visitor side faces the entrance and the walkway)
@@ -427,7 +387,6 @@ const entranceDoors = [];
     const a = add(new THREE.PlaneGeometry(1.95, 1.35), new THREE.MeshStandardMaterial({ map: artTex, roughness: 0.5 }), -SIDE + 0.24, 3.3, z); a.rotation.y = Math.PI / 2;
   }
   add(new THREE.BoxGeometry(0.1, 2.0, 3.6), mat('#111820', { roughness: 0.3 }), SIDE - 0.2, 3.2, -6);
-  const scr = add(new THREE.PlaneGeometry(3.4, 1.85), new THREE.MeshBasicMaterial({ map: logoTex }), SIDE - 0.26, 3.2, -6); scr.rotation.y = -Math.PI / 2;
 
   // ---- waiting lounge in the lobby (right side, before the security area)
   const sofa = (x, z, ry) => {
@@ -643,7 +602,8 @@ function buildFace(head, o) {
   }
   // mouth: closed-lip smile built from tubes that follow the face surface (corners raised)
   const my = -0.064, MW = 0.025;
-  const smileY = (x, lift) => my + lift * Math.abs(x / MW) ** 2.2;
+  const K = o.smile ?? 1; // 1 = smile, ~0 = neutral / serious expression
+  const smileY = (x, lift) => my + lift * K * Math.abs(x / MW) ** 2.2;
   const tube = (w, lift, dy, dz, r, m) => {
     const pts = [];
     for (let i = 0; i <= 16; i++) { const x = -w + 2 * w * i / 16, y = smileY(x, lift) + dy * (1 - (x / w) ** 2); pts.push(new THREE.Vector3(x, y, faceZ(x, y) + dz)); }
@@ -711,7 +671,7 @@ function buildUser() {
   const h = buildHuman({
     skin, skinShade: mat('#7a4c30', { roughness: 0.65 }),
     shirt: M.yellow, collar: M.yellowDark, pants: M.green, shoe: M.black, shortSleeve: true,
-    lip: '#6e3a2c', lipLine: '#3d1d16', brow: '#1a110b', iris: '#3b2414',
+    lip: '#6e3a2c', lipLine: '#3d1d16', brow: '#1a110b', iris: '#3b2414', smile: 0.12,
   });
   buildHair(h.head, { hair: M.userHair, cap: 1.28, tilt: -0.42, thick: 0.005, curls: 520, curlR: 0.0105 });
   // the visitor's own ID card, held in the right hand for the whole animation
@@ -741,7 +701,7 @@ function buildGuard() {
   const h = buildHuman({
     skin: M.skin, skinShade: mat('#d9ab84', { roughness: 0.65 }),
     shirt: M.suit, collar: M.suitShade, pants: M.pants, shoe: M.black, shortSleeve: false,
-    lip: '#c08a7c', lipLine: '#7a4a40', brow: '#15171a', iris: '#2b1d14',
+    lip: '#c08a7c', lipLine: '#7a4a40', brow: '#15171a', iris: '#2b1d14', smile: 0,
   });
   buildHair(h.head, { hair: M.hair, cap: 1.42, tilt: -0.3, thick: 0.004 });
   const up = h.upper;
@@ -803,265 +763,263 @@ function buildGuard() {
 const user = buildUser();
 const guard = buildGuard();
 scene.add(user.root, guard.root);
-const GUARD_POS = new THREE.Vector3(-2.02, 0, -4.95);
-guard.root.position.copy(GUARD_POS);
-guard.root.rotation.y = Math.PI / 2; // faces the visitor across the table
+user.card.visible = false; // no access card needed: the gates are released
 
-// ---------------------------------------------------------------- people around the building
-// Background people make the lobby and office feel alive: a receptionist, a visitor at the
-// counter, people chatting, people sitting on the sofas and lounge chairs, an office worker walking.
-const extras = [];
+// entrance sliding doors are held open by the fire alarm
+for (const d of entranceDoors) d.obj.position.x = d.closedX + d.dir * 1.15;
+
+// ---------------------------------------------------------------- fire emergency
+// Fire in the back-right corner of the office, smoke rising from it, wall strobes and red
+// alarm lights flashing, green EXIT signs and an assembly point (TITIK KUMPUL) outside.
+const emergency = {};
 {
-  const P = (o) => {
-    const h = buildHuman({
-      skin: mat(o.skin, { roughness: 0.6 }), skinShade: mat(new THREE.Color(o.skin).multiplyScalar(0.88).getStyle(), { roughness: 0.65 }),
-      shirt: mat(o.shirt, { roughness: 0.65 }), collar: o.collar ? mat(o.collar, { roughness: 0.6 }) : null,
-      pants: mat(o.pants, { roughness: 0.7 }), shoe: mat(o.shoe || '#1b1d21', { roughness: 0.4 }), shortSleeve: !!o.short,
-      lip: o.lip || '#8a4c40', lipLine: o.lipLine || '#4a2620', brow: o.brow || '#1d140e', iris: '#3a2416',
-    });
-    styleHair(h, o.hair, mat(o.hairColor || '#16110d', { roughness: 0.6 }));
-    h.root.position.set(o.x, 0, o.z);
-    h.root.rotation.y = o.ry;
-    scene.add(h.root);
-    return h;
-  };
-  const faceTo = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
-  const cup = (h, s = 1) => { // coffee cup in one hand
-    const c = mesh(new THREE.CylinderGeometry(0.035, 0.028, 0.1, 16), mat('#f4f4f4', { roughness: 0.4 }), 0, -0.31, 0.045, h.arms[s].elbow);
-    c.rotation.x = 1.6; // upright while the forearm is raised
-    mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.02, 16), mat('#6b4a32'), 0, 0.045, 0, c);
-  };
-  const phone = (h) => {
-    const g = mesh(new THREE.BoxGeometry(0.075, 0.15, 0.01), mat('#14181d', { roughness: 0.3 }), 0, -0.32, 0.05, h.arms[-1].elbow);
-    g.rotation.x = 0.3;
-    mesh(new THREE.PlaneGeometry(0.066, 0.135), new THREE.MeshBasicMaterial({ color: '#7fb8e8' }), 0, 0, 0.0055, g);
-  };
-  const sit = (h) => { // seated pose on a 0.42 m seat
-    h.body.position.y = -0.43;
-    for (const sd of [1, -1]) { h.legs[sd].hip.rotation.set(-Math.PI / 2 + 0.05, 0, sd * 0.06); h.legs[sd].knee.rotation.x = Math.PI / 2 - 0.1; }
-    h.upper.rotation.x = -0.24; // leaning back against the backrest
-  };
-  const breathe = (h, t, ph) => { h.upper.rotation.x += Math.sin(t * 1.6 + ph) * 0.012; };
-  // talking: alternating speaker, small arm gestures + nods, listeners look at the speaker
-  const talk = (h, t, ph, speaking, look, baseArm = [-0.08, -0.15]) => {
-    const g = speaking * (0.5 + 0.5 * Math.sin(t * 3.1 + ph));
-    h.arms[1].shoulder.rotation.set(baseArm[0] - 0.45 * g, 0, 0.05 + 0.1 * g);
-    h.arms[1].elbow.rotation.set(baseArm[1] - 1.0 * g, 0, 0);
-    h.headPivot.rotation.set(0.05 + 0.06 * Math.sin(t * (speaking ? 4.2 : 1.3) + ph) * (0.4 + speaking), look, 0);
-  };
-  const speakerOf = (t, n, period = 3.4, ph = 0) => Math.floor((t + ph) / period) % n;
-  const ease = (t, n, period, ph, i) => { // smooth 0..1 "is speaking" for person i
-    const u = ((t + ph) / period) % n, d0 = Math.abs(u - i - 0.5), d = Math.min(d0, n - d0);
-    return smooth(0.56, 0.38, d);
-  };
-  void speakerOf;
+  const FP = { x: 6.8, z: 19.6 };
+  // burning office furniture (charred desk + cabinet)
+  const char = mat('#2a2522', { roughness: 0.95 }), charHot = mat('#3a2418', { roughness: 0.9, emissive: '#ff4a10', emissiveIntensity: 0.35 });
+  const fg = new THREE.Group(); fg.position.set(FP.x, 0, FP.z); fg.rotation.y = 0.3;
+  addEdges(mesh(new THREE.BoxGeometry(1.7, 0.08, 0.85), charHot, 0, 0.76, 0, fg));
+  for (const [lx, lz] of [[-0.78, -0.36], [0.78, -0.36], [-0.78, 0.36], [0.78, 0.36]]) mesh(new THREE.BoxGeometry(0.06, 0.74, 0.06), char, lx, 0.37, lz, fg);
+  addEdges(mesh(new THREE.BoxGeometry(0.6, 1.5, 0.55), char, 1.35, 0.75, 0.2, fg));
+  mesh(new THREE.BoxGeometry(0.5, 0.35, 0.04), mat('#111'), -0.3, 1.0, -0.1, fg);
+  const scorch = mesh(new THREE.CircleGeometry(2.2, 40), new THREE.MeshBasicMaterial({ color: '#1c1714', transparent: true, opacity: 0.55, depthWrite: false }), 0, 0.007, 0, fg);
+  scorch.rotation.x = -Math.PI / 2; scorch.userData.noShadow = true;
+  scene.add(fg);
+  // flames: additive cones that flicker
+  const flameMat = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+  const cone = new THREE.ConeGeometry(1, 1, 14, 1, true); cone.translate(0, 0.5, 0);
+  emergency.flames = [];
+  const rnd = (() => { let s = 99; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
+  for (let i = 0; i < 26; i++) {
+    const outer = i < 16;
+    const m = mesh(cone, flameMat(outer ? '#ff5a12' : '#ffd23a'), 0, 0, 0, fg);
+    const bx = (rnd() - 0.5) * (outer ? 2.2 : 1.6), bz = (rnd() - 0.5) * 0.8;
+    const by = Math.abs(bx - 1.35) < 0.35 ? 1.5 : 0.8;
+    m.position.set(bx, by, bz);
+    m.userData = { noShadow: true, r: outer ? 0.2 + rnd() * 0.16 : 0.1 + rnd() * 0.1, hgt: outer ? 0.9 + rnd() * 0.9 : 0.5 + rnd() * 0.5, ph: rnd() * 6.28, f: 7 + rnd() * 6 };
+    emergency.flames.push(m);
+  }
+  emergency.embers = Array.from({ length: 30 }, (_, i) => {
+    const m = mesh(new THREE.SphereGeometry(0.025, 6, 4), flameMat('#ffb040'), 0, 0, 0); m.userData = { noShadow: true, ph: rnd(), ox: (rnd() - 0.5) * 2, oz: (rnd() - 0.5) * 1, sp: 0.8 + rnd() }; scene.add(m); return m;
+  });
+  emergency.fireLight = new THREE.PointLight('#ff7a22', 9, 16, 1.4); emergency.fireLight.position.set(FP.x, 1.8, FP.z - 0.8); scene.add(emergency.fireLight);
+  emergency.FP = FP;
 
-  // --- receptionist behind the lobby desk + a visitor asking something at the counter
-  const R = RECEPTION, c = Math.cos(R.ry), sn = Math.sin(R.ry);
-  const local = (lx, lz) => [R.x + lx * c + lz * sn, R.z - lx * sn + lz * c];
-  const [rx, rz] = local(0, 0.72), [vx, vz] = local(0.35, -0.85);
-  const recep = P({ x: rx, z: rz, ry: R.ry + Math.PI, skin: '#c68e64', shirt: '#203a5c', collar: '#f2f2f2', pants: '#1c2533', hair: 'bun', hairColor: '#1a120c', lip: '#a65a50' });
-  const asker = P({ x: vx, z: vz, ry: faceTo(vx, vz, rx, rz), skin: '#e0b48c', shirt: '#8c96a0', collar: '#7a838c', pants: '#2e3a52', hair: 'short', hairColor: '#3a2a1e', short: true });
-  extras.push({ update: t => {
-    // greets the visitor coming in, then talks with the person at the counter / checks the monitor
-    const greet = pulse(t, 0.6, 1.2, 2.6, 3.2);
-    const toUser = faceTo(rx, rz, user.root.position.x, user.root.position.z) - (R.ry + Math.PI);
-    const sp = ease(t, 2, 2.8, 0.4, 0);
-    talk(recep, t, 0, sp * (1 - greet), lerp(-0.25, Math.atan2(Math.sin(toUser), Math.cos(toUser)), greet), [-0.35, -0.9]);
-    recep.arms[-1].shoulder.rotation.set(lerp(-0.35, -0.2, greet), 0, lerp(-0.05, -1.2, greet));
-    recep.arms[-1].elbow.rotation.set(lerp(-0.9, -1.6, greet) + 0.25 * greet * Math.sin(t * 9), 0, 0);
-    recep.upper.rotation.x = 0.04; breathe(recep, t, 0.3);
-    talk(asker, t, 1.7, 1 - sp, 0.0, [-0.45, -0.85]);
-    asker.arms[-1].shoulder.rotation.set(-0.45, 0, -0.05); asker.arms[-1].elbow.rotation.set(-0.85, 0, 0);
-    asker.upper.rotation.x = 0.03; breathe(asker, t, 1.1);
-  } });
+  // smoke: soft camera-facing puffs rising from the fire and rolling out under the roof line
+  const smokeTex = canvasTex(128, 128, (g, w) => {
+    const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, w);
+  });
+  emergency.smoke = Array.from({ length: 90 }, (_, i) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: i % 3 ? '#4d4845' : '#6b6560', transparent: true, depthWrite: false, opacity: 0 }));
+    s.userData = { off: rnd() * 7, ox: (rnd() - 0.5) * 1.6, oz: (rnd() - 0.5) * 0.8, ang: Math.PI + (rnd() - 0.5) * 2.2, sp: 0.45 + rnd() * 0.5, top: 4.6 + rnd() * 1.6, rot: rnd() * 6 };
+    scene.add(s); return s;
+  });
 
-  // --- two people chatting on the long sofa, one reading a phone on the other sofa
-  {
-    const [sx, sz] = SOFAS[0];
-    const a = P({ x: sx - 0.03, z: sz - 0.5, ry: -Math.PI / 2, skin: '#d9a77c', shirt: '#7a2e3a', pants: '#34363d', hair: 'hijab', hairColor: '#5e7d6a', lip: '#a35e55' });
-    const b = P({ x: sx - 0.03, z: sz + 0.5, ry: -Math.PI / 2, skin: '#a06a45', shirt: '#e8ecef', collar: '#cfd6dc', pants: '#b39b72', hair: 'short' });
-    sit(a); sit(b);
-    const [qx, qz] = SOFAS[1];
-    const d = P({ x: qx + 0.3, z: qz + 0.03, ry: 0, skin: '#6b4228', shirt: '#2f7f86', pants: '#25324a', hair: 'curly', short: true });
-    sit(d); phone(d);
-    extras.push({ update: t => {
-      const sa = ease(t, 2, 3.0, 0.0, 0);
-      sit(a); sit(b); sit(d);
-      talk(a, t, 0.2, sa, -0.75, [-0.3, -0.75]); breathe(a, t, 0.1);
-      talk(b, t, 2.1, 1 - sa, 0.75, [-0.3, -0.75]); breathe(b, t, 1.9);
-      for (const h of [a, b]) { h.arms[-1].shoulder.rotation.set(-0.3, 0, -0.05); h.arms[-1].elbow.rotation.set(-0.75, 0, 0); }
-      d.arms[-1].shoulder.rotation.set(-0.35, 0, 0.12); d.arms[-1].elbow.rotation.set(-1.25, 0, 0);
-      d.arms[1].shoulder.rotation.set(-0.35, 0, -0.1); d.arms[1].elbow.rotation.set(-1.1, 0, 0);
-      d.headPivot.rotation.set(0.42 + 0.03 * Math.sin(t * 0.9), 0.05, 0); breathe(d, t, 2.7);
-    } });
+  // fire alarm strobes on the walls + red alarm lights
+  emergency.strobes = [];
+  const strobeMat = new THREE.MeshStandardMaterial({ color: '#5a0a0a', emissive: '#ff1a1a', emissiveIntensity: 0 });
+  const bodyMat = mat('#c8202a', { roughness: 0.5 });
+  for (const sd of [-1, 1]) for (const z of [-10.5, -3.5, 4.5, 11.5, 18.5]) {
+    const g = new THREE.Group(); g.position.set(sd * 9.83, 3.7, z); g.rotation.y = -sd * Math.PI / 2;
+    mesh(new THREE.BoxGeometry(0.24, 0.3, 0.06), bodyMat, 0, 0, 0, g);
+    mesh(new THREE.BoxGeometry(0.16, 0.1, 0.05), strobeMat, 0, 0.06, 0.04, g);
+    mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 16).rotateX(Math.PI / 2), mat('#d9d9d9', { metalness: 0.5 }), 0, -0.07, 0.04, g);
+    scene.add(g);
+  }
+  for (const x of [-4.5, 4.5]) { // on the back wall too
+    const g = new THREE.Group(); g.position.set(x * 0.6, 4.9, 22.83); g.rotation.y = Math.PI;
+    mesh(new THREE.BoxGeometry(0.24, 0.3, 0.06), bodyMat, 0, 0, 0, g); mesh(new THREE.BoxGeometry(0.16, 0.1, 0.05), strobeMat, 0, 0.06, 0.04, g); scene.add(g);
+  }
+  emergency.strobeMat = strobeMat;
+  emergency.alarmLights = [[0, 4.6, -7], [0, 4.6, 12], [-6, 4.6, 3], [6, 4.6, 3]].map(([x, y, z]) => { const l = new THREE.PointLight('#ff2a2a', 0, 16, 1.3); l.position.set(x, y, z); scene.add(l); return l; });
+
+  // green EXIT signs (running-man pictogram + arrow)
+  const exitTex = (arrow) => canvasTex(512, 192, (g, w, h) => {
+    g.fillStyle = '#0b8a3e'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#ffffff'; g.lineWidth = 8; g.strokeRect(6, 6, w - 12, h - 12);
+    g.fillStyle = '#ffffff'; g.strokeStyle = '#ffffff'; g.lineCap = 'round'; g.lineWidth = 15;
+    const px = 92, py = 96; // running man
+    g.beginPath(); g.arc(px + 12, py - 54, 14, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(px + 4, py - 34); g.lineTo(px - 8, py + 10); g.stroke();
+    g.beginPath(); g.moveTo(px - 8, py + 10); g.lineTo(px + 22, py + 26); g.lineTo(px + 18, py + 58); g.stroke();
+    g.beginPath(); g.moveTo(px - 8, py + 10); g.lineTo(px - 26, py + 40); g.lineTo(px - 52, py + 44); g.stroke();
+    g.beginPath(); g.moveTo(px - 36, py - 14); g.lineTo(px - 10, py - 30); g.lineTo(px + 18, py - 8); g.lineTo(px + 40, py - 18); g.stroke();
+    g.font = 'bold 86px "Noto Sans", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('EXIT', 290, h / 2 + 4);
+    g.lineWidth = 14; // arrow
+    const ax = 440, ay = h / 2;
+    if (arrow === 'down') { g.beginPath(); g.moveTo(ax, ay - 46); g.lineTo(ax, ay + 40); g.stroke(); g.beginPath(); g.moveTo(ax - 30, ay + 12); g.lineTo(ax, ay + 44); g.lineTo(ax + 30, ay + 12); g.stroke(); }
+    else { g.beginPath(); g.moveTo(ax - 40, ay); g.lineTo(ax + 40, ay); g.stroke(); g.beginPath(); g.moveTo(ax + 10, ay - 30); g.lineTo(ax + 42, ay); g.lineTo(ax + 10, ay + 30); g.stroke(); }
+  });
+  const exitMat = new THREE.MeshBasicMaterial({ map: exitTex('down') });
+  const sign = (x, y, z, ry, w = 1.4) => {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry;
+    mesh(new THREE.BoxGeometry(w + 0.06, w * 0.375 + 0.06, 0.05), mat('#e8ecef'), 0, 0, -0.03, g);
+    mesh(new THREE.PlaneGeometry(w, w * 0.375), exitMat, 0, 0, 0.0, g);
+    scene.add(g); return g;
+  };
+  sign(-0.45, 3.85, -13.84, 0, 1.3);                       // above the entrance doors (facing the lobby)
+  for (const x of [-3.4, 0, 3.4]) {                         // hanging above the gate bank (facing the office)
+    sign(x, 3.0, 0.6, Math.PI, 1.2);
+    for (const cx of [-0.5, 0.5]) scene.add(mesh(new THREE.CylinderGeometry(0.006, 0.006, 2.8, 4), M.steel, x + cx, 4.62, 0.62));
   }
 
-  // --- standing chat in the lobby (left side, by the artwork)
-  {
-    const pts = [[-6.0, -8.2], [-5.1, -8.9], [-6.2, -9.3]];
-    const cx = -5.75, cz = -8.8;
-    const ppl = [
-      P({ x: pts[0][0], z: pts[0][1], ry: faceTo(...pts[0], cx, cz), skin: '#f0c9a6', shirt: '#9cc3e6', pants: '#3a3a44', hair: 'bob', hairColor: '#4a2f1d', lip: '#b8645c' }),
-      P({ x: pts[1][0], z: pts[1][1], ry: faceTo(...pts[1], cx, cz), skin: '#a06a45', shirt: '#6d7a3a', collar: '#5b6630', pants: '#2b2b2b', hair: 'short', short: true }),
-      P({ x: pts[2][0], z: pts[2][1], ry: faceTo(...pts[2], cx, cz), skin: '#e6b98f', shirt: '#d9d2c4', collar: '#bfb7a8', pants: '#3b4a63', hair: 'short', hairColor: '#2a2018' }),
-    ];
-    cup(ppl[1], -1); cup(ppl[2], 1);
-    extras.push({ update: t => ppl.forEach((h, i) => {
-      const spk = ease(t, 3, 2.6, 0.7, i);
-      // look at the current speaker (or at the group centre when speaking)
-      const u = Math.floor(((t + 0.7) / 2.6) % 3), sp = pts[u];
-      const want = i === u ? 0 : Math.atan2(Math.sin(faceTo(...pts[i], ...sp) - h.root.rotation.y), Math.cos(faceTo(...pts[i], ...sp) - h.root.rotation.y));
-      talk(h, t, i * 1.3, spk, clamp(want, -0.7, 0.7) * 0.8);
-      h.arms[-1].shoulder.rotation.set(i === 1 ? -0.4 : -0.05, 0, -0.06); h.arms[-1].elbow.rotation.set(i === 1 ? -1.2 : -0.12, 0, 0);
-      if (i === 2) { h.arms[1].shoulder.rotation.set(-0.4, 0, 0.06); h.arms[1].elbow.rotation.set(-1.2, 0, 0); }
-      h.upper.rotation.x = 0.02; breathe(h, t, i);
-    }) });
-  }
+  // emergency message on the lobby screen (replaces the welcome screen)
+  const evacTex = canvasTex(1024, 556, (g, w, h) => {
+    g.fillStyle = '#b3121b'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.beginPath(); g.moveTo(w / 2, 70); g.lineTo(w / 2 + 80, 210); g.lineTo(w / 2 - 80, 210); g.closePath(); g.fill();
+    g.fillStyle = '#b3121b'; g.font = 'bold 100px "Noto Sans", sans-serif'; g.fillText('!', w / 2, 158);
+    g.fillStyle = '#ffffff'; g.font = 'bold 150px "Noto Sans", sans-serif'; g.fillText('EVAKUASI', w / 2, 330);
+    g.font = 'bold 64px "Noto Sans", sans-serif'; g.fillText('FIRE  ·  KEBAKARAN', w / 2, 460);
+  });
+  emergency.screenMat = new THREE.MeshBasicMaterial({ map: evacTex });
+  const scr = mesh(new THREE.PlaneGeometry(3.4, 1.85), emergency.screenMat, 9.74, 3.2, -6); scr.rotation.y = -Math.PI / 2; scene.add(scr);
 
-  // --- office: a group of colleagues chatting, two people at the lounge table, a walker
-  {
-    const pts = [[3.6, 10.2], [4.6, 10.6], [4.1, 11.5]];
-    const cx = 4.1, cz = 10.75;
-    const ppl = [
-      P({ x: pts[0][0], z: pts[0][1], ry: faceTo(...pts[0], cx, cz), skin: '#8d5a3a', shirt: '#ffffff', collar: '#e4e8ec', pants: '#2a3242', hair: 'short' }),
-      P({ x: pts[1][0], z: pts[1][1], ry: faceTo(...pts[1], cx, cz), skin: '#efc7a1', shirt: '#2d5f8b', pants: '#2b2b2b', hair: 'bun', hairColor: '#20140d', lip: '#b8645c' }),
-      P({ x: pts[2][0], z: pts[2][1], ry: faceTo(...pts[2], cx, cz), skin: '#c08a60', shirt: '#9e3b32', pants: '#3a3f4a', hair: 'hijab', hairColor: '#2c3e57', lip: '#a35e55' }),
-    ];
-    cup(ppl[0], 1);
-    const [c1, c2] = LOUNGE_CHAIRS;
-    const s1 = P({ x: c1[0] + 0.03, z: c1[1], ry: c1[2], skin: '#e0b48c', shirt: '#4d6b4a', pants: '#24282e', hair: 'short', hairColor: '#4a3524', short: true });
-    const s2 = P({ x: c2[0], z: c2[1] - 0.03, ry: c2[2], skin: '#6b4228', shirt: '#e6c34a', pants: '#2e3a52', hair: 'curly' });
-    sit(s1); sit(s2); cup(s1, -1);
-    const walker = P({ x: 8, z: 18.5, ry: -Math.PI / 2, skin: '#d9a77c', shirt: '#3d4a5c', collar: '#ffffff', pants: '#1f242c', hair: 'short' });
-    const folder = mesh(new THREE.BoxGeometry(0.03, 0.3, 0.23), mat('#2f7fc4'), 0.0, -0.28, 0.06, walker.arms[1].elbow); void folder;
-    extras.push({ update: t => {
-      ppl.forEach((h, i) => {
-        const spk = ease(t, 3, 2.9, 0.2, i);
-        talk(h, t, i * 0.9, spk, 0);
-        h.arms[-1].shoulder.rotation.set(-0.05, 0, -0.06); h.arms[-1].elbow.rotation.set(-0.12, 0, 0);
-        if (i === 0) { h.arms[1].shoulder.rotation.set(-0.4, 0, 0.06); h.arms[1].elbow.rotation.set(-1.2, 0, 0); }
-        breathe(h, t, i);
+  // assembly point sign outside
+  const apTex = canvasTex(512, 384, (g, w, h) => {
+    g.fillStyle = '#0b8a3e'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#ffffff'; g.lineWidth = 10; g.strokeRect(8, 8, w - 16, h - 16);
+    g.fillStyle = '#ffffff';
+    const cx = w / 2, cy = 130; // four people around a centre point
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4, px = cx + Math.cos(a) * 70, py = cy + Math.sin(a) * 70;
+      g.beginPath(); g.arc(px, py - 16, 13, 0, 7); g.fill(); g.fillRect(px - 12, py, 24, 34);
+    }
+    g.beginPath(); g.arc(cx, cy + 8, 12, 0, 7); g.fill();
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = 'bold 66px "Noto Sans", sans-serif'; g.fillText('TITIK KUMPUL', cx, 270);
+    g.font = 'bold 38px "Noto Sans", sans-serif'; g.fillText('ASSEMBLY POINT', cx, 335);
+  });
+  const ap = new THREE.Group(); ap.position.set(-4.4, 0, -21.6);
+  mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12), M.steel, 0, 1.15, -0.03, ap);
+  mesh(new THREE.BoxGeometry(1.32, 1.0, 0.04), mat('#e8ecef'), 0, 2.2, 0, ap);
+  mesh(new THREE.PlaneGeometry(1.24, 0.93), new THREE.MeshBasicMaterial({ map: apTex }), 0, 2.2, 0.022, ap);
+  scene.add(ap);
+}
+
+function updateEmergency(t) {
+  const E = emergency;
+  // flames
+  for (const m of E.flames) {
+    const u = m.userData, fl = 0.75 + 0.25 * Math.sin(t * u.f + u.ph) + 0.12 * Math.sin(t * u.f * 2.3 + u.ph * 2);
+    m.scale.set(1.3 * u.r * (0.9 + 0.15 * Math.sin(t * u.f * 0.7 + u.ph)), 1.35 * u.hgt * fl, 1.3 * u.r);
+    m.rotation.z = 0.08 * Math.sin(t * 3 + u.ph);
+  }
+  for (const e of E.embers) {
+    const u = e.userData, a = (t * 0.35 * u.sp + u.ph) % 1;
+    e.position.set(E.FP.x + u.ox + 0.3 * Math.sin(t * 2 + u.ph * 9), 0.9 + a * 3.6, E.FP.z + u.oz);
+    e.material.opacity = (1 - a) * 0.9;
+  }
+  E.fireLight.intensity = 8 + 2.2 * Math.sin(t * 13) + 1.4 * Math.sin(t * 7.3 + 1);
+  // smoke puffs: rise, then roll outward; density grows over time
+  const grow = 0.55 + 0.45 * smooth(0, 10, t);
+  for (const s of E.smoke) {
+    const u = s.userData, L = 7, age = (t + u.off) % L;
+    const rise = Math.min(age * 1.15, u.top - 1.3), tRise = rise / 1.15, drift = Math.max(0, age - tRise) * u.sp;
+    s.position.set(E.FP.x + u.ox + Math.sin(u.ang) * drift, 1.3 + rise + 0.15 * Math.sin(age + u.rot), E.FP.z + u.oz + Math.cos(u.ang) * drift);
+    const sc = 0.8 + age * 0.5;
+    s.scale.set(sc, sc, 1);
+    s.material.rotation = u.rot + age * 0.15;
+    s.material.opacity = smooth(0, 0.8, age) * (1 - smooth(L - 2, L, age)) * 0.55 * grow;
+  }
+  // alarm: strobes flash, red lights pulse
+  const strobe = ((t * 1.3) % 1) < 0.1 ? 1 : 0;
+  E.strobeMat.emissiveIntensity = 0.2 + 3.5 * strobe;
+  const pulseR = Math.pow(Math.max(0, Math.sin(t * Math.PI * 2 * 0.9)), 2);
+  for (const l of E.alarmLights) l.intensity = 9 * pulseR;
+  E.screenMat.color.setScalar(0.75 + 0.25 * pulseR);
+}
+
+// ---------------------------------------------------------------- evacuation crowd
+// Everyone in the building walks out: office -> any of the 7 open gate lanes -> lobby ->
+// entrance doors -> assembly point outside. Paths come from a deterministic crowd simulation.
+const crowd = runCrowd();
+const sampleAgent = sampler(crowd);
+const people = []; // { h, agent, i, cover }
+{
+  const r = (() => { let s = 7331; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
+  const pick = a => a[Math.floor(r() * a.length)];
+  const SKINS = ['#f0c9a6', '#e6b98f', '#d9a77c', '#c68e64', '#a06a45', '#8d5a3a', '#6b4228', '#efc7a1'];
+  const SHIRTS = ['#ffffff', '#9cc3e6', '#2d5f8b', '#7a2e3a', '#4d6b4a', '#d9d2c4', '#3d4a5c', '#9e3b32', '#e8ecef', '#5b4a7a', '#c97b3a', '#2f7f86', '#8c96a0', '#1f2a38'];
+  const PANTS = ['#2a3242', '#2b2b2b', '#3a3f4a', '#1f242c', '#34363d', '#2e3a52', '#b39b72', '#5a5048'];
+  const HAIRC = ['#16110d', '#2a2018', '#3a2a1e', '#4a2f1d', '#1d140e', '#6b4a32'];
+  const HIJABC = ['#5e7d6a', '#2c3e57', '#7a2e3a', '#c9b79c', '#3b3b46'];
+  const FIXED = {
+    recep: { skin: '#c68e64', shirt: '#203a5c', collar: '#f2f2f2', pants: '#1c2533', hair: 'bun', hairColor: '#1a120c', lip: '#a65a50' },
+    asker: { skin: '#e0b48c', shirt: '#8c96a0', collar: '#7a838c', pants: '#2e3a52', hair: 'short', hairColor: '#3a2a1e', short: true },
+    sofaA: { skin: '#d9a77c', shirt: '#7a2e3a', pants: '#34363d', hair: 'hijab', hairColor: '#5e7d6a', lip: '#a35e55' },
+    sofaB: { skin: '#a06a45', shirt: '#e8ecef', collar: '#cfd6dc', pants: '#b39b72', hair: 'short' },
+    sofaC: { skin: '#6b4228', shirt: '#2f7f86', pants: '#25324a', hair: 'curly', short: true },
+    chatA: { skin: '#f0c9a6', shirt: '#9cc3e6', pants: '#3a3a44', hair: 'bob', hairColor: '#4a2f1d', lip: '#b8645c' },
+    chatB: { skin: '#a06a45', shirt: '#6d7a3a', collar: '#5b6630', pants: '#2b2b2b', hair: 'short', short: true },
+    chatC: { skin: '#e6b98f', shirt: '#d9d2c4', collar: '#bfb7a8', pants: '#3b4a63', hair: 'short', hairColor: '#2a2018' },
+  };
+  let curly = 0;
+  crowd.agents.forEach((a, i) => {
+    let h;
+    if (a.id === 'user') h = user;
+    else {
+      let o = FIXED[a.id];
+      if (!o) {
+        const roll = r();
+        let hair = roll < 0.45 ? 'short' : roll < 0.62 ? 'bob' : roll < 0.75 ? 'bun' : roll < 0.9 ? 'hijab' : 'curly';
+        if (hair === 'curly' && curly++ > 3) hair = 'short';
+        const shirt = pick(SHIRTS);
+        o = {
+          skin: pick(SKINS), shirt, collar: r() < 0.5 ? new THREE.Color(shirt).multiplyScalar(0.85).getStyle() : null, pants: pick(PANTS),
+          hair, hairColor: hair === 'hijab' ? pick(HIJABC) : pick(HAIRC), short: r() < 0.35,
+          lip: hair === 'bob' || hair === 'bun' || hair === 'hijab' ? '#b0645a' : '#8a4c40',
+        };
+      }
+      h = buildHuman({
+        skin: mat(o.skin, { roughness: 0.6 }), skinShade: mat(new THREE.Color(o.skin).multiplyScalar(0.88).getStyle(), { roughness: 0.65 }),
+        shirt: mat(o.shirt, { roughness: 0.65 }), collar: o.collar ? mat(o.collar, { roughness: 0.6 }) : null,
+        pants: mat(o.pants, { roughness: 0.7 }), shoe: mat('#1b1d21', { roughness: 0.4 }), shortSleeve: !!o.short,
+        lip: o.lip || '#8a4c40', lipLine: '#4a2620', brow: '#1d140e', iris: '#3a2416', smile: 0.1,
       });
-      sit(s1); sit(s2);
-      const sa = ease(t, 2, 3.3, 1.0, 0);
-      talk(s1, t, 0.4, sa, 0.35, [-0.3, -0.75]); talk(s2, t, 1.4, 1 - sa, -0.35, [-0.3, -0.75]);
-      s1.arms[-1].shoulder.rotation.set(-0.45, 0, 0); s1.arms[-1].elbow.rotation.set(-1.1, 0, 0);
-      s2.arms[-1].shoulder.rotation.set(-0.3, 0, -0.05); s2.arms[-1].elbow.rotation.set(-0.75, 0, 0);
-      breathe(s1, t, 0.5); breathe(s2, t, 2.2);
-      // office worker walking across the back of the office (right -> left), never near the visitor
-      const wx = 8.5 - 0.7 * t;
-      walker.root.position.set(wx, 0, 18.5);
-      const sw = applyWalk(walker, (0.7 * t / 0.68) * Math.PI, 0.8, 0.3);
-      walker.arms[-1].shoulder.rotation.set(-sw, 0, -0.05); walker.arms[-1].elbow.rotation.set(-0.2, 0, 0);
-      walker.arms[1].shoulder.rotation.set(-0.15, 0, 0.04); walker.arms[1].elbow.rotation.set(-1.3, 0, 0);
-    } });
-  }
+      styleHair(h, o.hair, mat(o.hairColor || '#16110d', { roughness: 0.6 }));
+      scene.add(h.root);
+    }
+    // a few people cover their nose and mouth against the smoke
+    people.push({ h, a, i, cover: a.id !== 'user' && (i % 6 === 2) ? 1 : 0, look: (r() - 0.5) * 1.2, ph: r() * 6.28 });
+  });
 }
 
-// ---------------------------------------------------------------- the visitor's bag
-const bag = { root: new THREE.Group() };
+// the security guard stands inside the entrance and waves everyone toward the open doors
+const GUARD_POS = new THREE.Vector3(2.1, 0, -11.4);
+guard.root.position.copy(GUARD_POS);
+guard.root.rotation.y = -0.35; // faces the people coming from the gate
+guard.wand.visible = false;
+
+// shadows for everything except helpers/glass/fx; tiny face details don't cast shadows
 {
-  const r = bag.root;
-  const W = 0.44, H = 0.3, D = 0.16, T = 0.018, top = -0.075;
-  const bodyY = top - H / 2;
-  mesh(new THREE.BoxGeometry(W, T, D), M.bag, 0, top - H + T / 2, 0, r);
-  for (const s of [-1, 1]) {
-    mesh(new THREE.BoxGeometry(W, H, T), M.bag, 0, bodyY, s * (D / 2 - T / 2), r);
-    mesh(new THREE.BoxGeometry(T, H, D), M.bag, s * (W / 2 - T / 2), bodyY, 0, r);
-  }
-  mesh(new THREE.BoxGeometry(W - 0.01, 0.012, 0.012), M.steel, 0, top - 0.02, D / 2 + 0.002, r); // zipper trim
-  // contents (visible when the guard opens the bag)
-  mesh(new THREE.BoxGeometry(0.36, 0.22, 0.02), M.bagInner, 0, top - H + 0.13, -0.04, r);
-  mesh(new THREE.BoxGeometry(0.14, 0.12, 0.06), mat('#2f7fc4'), -0.1, top - H + 0.08, 0.035, r);
-  mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 14), mat('#d9e4ec', { roughness: 0.2 }), 0.12, top - H + 0.11, 0.035, r);
-  // lid with handle, hinged along the back edge
-  const lid = new THREE.Group(); lid.position.set(0, top, -D / 2); r.add(lid);
-  mesh(new THREE.BoxGeometry(W + 0.01, 0.018, D + 0.01), M.bag, 0, 0.009, D / 2, lid);
-  const handle = mesh(new THREE.TorusGeometry(0.055, 0.013, 10, 24, Math.PI), M.black, 0, 0.018, D / 2, lid);
-  void handle;
-  bag.lid = lid;
-  scene.add(r);
-}
-
-// ---------------------------------------------------------------- RFID / verification effects
-const fx = {};
-{
-  const blue = '#3fb0ff';
-  const ringMat = () => new THREE.MeshBasicMaterial({ color: blue, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  fx.floorRings = [0, 1, 2].map(() => { const m = mesh(new THREE.RingGeometry(0.92, 1.0, 64), ringMat()); m.rotation.x = -Math.PI / 2; scene.add(m); return m; });
-  fx.scanBand = mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.05, 64, 1, true), ringMat()); scene.add(fx.scanBand);
-  fx.scanField = mesh(new THREE.CylinderGeometry(0.62, 0.62, 2.5, 64, 1, true), ringMat()); scene.add(fx.scanField);
-  fx.readerWaves = [0, 1, 2].map(() => { const m = mesh(new THREE.RingGeometry(0.3, 0.34, 48, 1, -Math.PI / 3, Math.PI * 2 / 3), ringMat()); scene.add(m); return m; });
-  fx.particles = Array.from({ length: 8 }, () => { const m = mesh(new THREE.SphereGeometry(0.025, 10, 8), ringMat()); scene.add(m); return m; });
-  fx.successRing = mesh(new THREE.RingGeometry(0.9, 1.0, 64), new THREE.MeshBasicMaterial({ color: '#35ff6e', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-  fx.successRing.rotation.x = -Math.PI / 2; scene.add(fx.successRing);
-  fx.gateLight = new THREE.PointLight('#3fb0ff', 0, 4, 2); fx.gateLight.position.set(0, 1.3, 0); scene.add(fx.gateLight);
-}
-
-// shadows for everything except helpers/glass/fx
-scene.traverse(o => {
-  if (o.isMesh) {
+  const sph = new THREE.Sphere(), sc = new THREE.Vector3();
+  scene.traverse(o => {
+    if (!o.isMesh) return;
     const transparent = o.material && o.material.transparent;
-    o.castShadow = !o.userData.noShadow && !o.userData.receiveOnly && !transparent;
+    if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+    o.updateWorldMatrix(true, false); o.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), sc);
+    sph.copy(o.geometry.boundingSphere);
+    const tiny = sph.radius * Math.max(sc.x, sc.y, sc.z) < 0.03;
+    o.castShadow = !o.userData.noShadow && !o.userData.receiveOnly && !transparent && !tiny;
     o.receiveShadow = !transparent;
-  }
-});
-
-// ---------------------------------------------------------------- timeline
-// Visitor speed profile (units/s). Distance along the path is the integral of speed,
-// and leg swing is driven by distance, so feet never slide.
-const SPEED_KEYS = [
-  [0.0, 2.8, 1.6, 1.6],   // arriving at the checkpoint (already walking)
-  [2.8, 4.0, 1.6, 0.0],   // slow down, stop in front of the guard
-  [4.0, 11.4, 0.0, 0.0],  // bag inspection
-  [11.4, 12.2, 0.0, 1.5], // set off toward the gate
-  [12.2, 99, 1.5, 1.5],   // one continuous walk: gate -> inside the company (never stops)
-];
-function speedAt(t) {
-  for (const [a, b, va, vb] of SPEED_KEYS) if (t >= a && t < b) return lerp(va, vb, (1 - Math.cos(Math.PI * (t - a) / (b - a))) / 2);
-  return 0;
-}
-const DT = 1 / 1000;
-const sTable = [0];
-for (let i = 1; i <= 26 / DT; i++) sTable.push(sTable[i - 1] + 0.5 * (speedAt((i - 1) * DT) + speedAt(i * DT)) * DT);
-const distAt = t => { const f = clamp(t, 0, 26) / DT, i = Math.floor(f); return lerp(sTable[i], sTable[Math.min(i + 1, sTable.length - 1)], f - i); };
-
-const START_Z = -5.0 - distAt(4.0);
-const pathX = z => -0.45 + 0.45 * smooth(-5.0, -2.6, z);
-const PATH = [];
-{
-  let s = 0, pz = START_Z, px = pathX(START_Z);
-  for (let z = START_Z; z <= 30; z += 0.004) { const x = pathX(z); s += Math.hypot(x - px, z - pz); PATH.push([s, x, z]); px = x; pz = z; }
-}
-function pathAt(s) {
-  let lo = 0, hi = PATH.length - 1;
-  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (PATH[m][0] < s) lo = m; else hi = m; }
-  const a = PATH[lo], b = PATH[hi], u = clamp((s - a[0]) / Math.max(1e-6, b[0] - a[0]));
-  return { x: lerp(a[1], b[1], u), z: lerp(a[2], b[2], u), heading: Math.atan2(b[1] - a[1], b[2] - a[2]) };
+  });
 }
 
-// Key moments
-const T = {
-  // the card is detected from a distance as soon as the visitor leaves the checkpoint,
-  // so the gate is fully open well before they reach it
-  scanStart: 11.6, verified: 12.9,
-  openStart: 13.0, openEnd: 13.9,
-  closeStart: 16.6, closeEnd: 17.5,
-};
-const TABLE_SPOT = new THREE.Vector3(TABLE.x + 0.13, TABLE.top + 0.37, -4.68);
-
+// ---------------------------------------------------------------- camera
 // Camera keyframes: [t, azimuth, height, radius, targetX, targetY, targetZ, follow]
+// azimuth 0 = camera on the +z side of the target (behind people walking out toward -z).
 const CAM_KEYS = [
-  [0.0, -0.32, 7.2, 9.8, -0.6, 0.5, -4.2, 0],     // reference-image framing: gate in front, checkpoint behind
-  [4.6, -0.2, 3.3, 6.4, -1.5, 1.1, -4.8, 0],      // closer on the inspection (faces readable)
-  [10.3, -0.24, 3.4, 6.6, -1.4, 1.1, -4.6, 0],
-  [12.0, -0.33, 5.8, 9.0, -0.5, 0.8, -3.0, 0],    // checkpoint + gate + visitor in frame (detection)
-  [13.8, -0.5, 5.2, 8.6, -0.2, 0.8, -1.2, 0.25],  // gate already open as the visitor arrives
-  [15.6, -1.2, 4.8, 8.0, 0, 0.9, 0.6, 0.5],       // walking straight through
-  [17.4, -2.2, 3.9, 6.6, 0, 1.1, 2.5, 0.8],       // gate closing behind the visitor
-  [19.8, -Math.PI + 0.04, 3.0, 5.4, 0, 1.2, 6, 1], // follow shot from behind
-  [24.5, -Math.PI, 2.9, 5.2, 0, 1.2, 10, 1],
+  [0.0, Math.PI + 0.31, 2.9, 11.5, 4.5, 2.1, 15.0, 0],   // office: fire in the back corner, alarm, people start leaving
+  [3.2, Math.PI - 0.5, 5.4, 10.5, 0.8, 0.9, 7.5, 0],     // the crowd heads for the gates
+  [6.6, Math.PI - 0.78, 5.6, 11.0, 0, 0.8, 2.0, 0.15],   // all 7 gates open, system off, people streaming through
+  [9.6, 1.55, 5.0, 9.5, 0, 0.8, -1.5, 0.45],             // swing round as the visitor passes the gate
+  [12.6, 0.55, 4.0, 7.2, -0.2, 0.9, -6, 0.85],           // following the visitor through the lobby
+  [16.2, 0.25, 3.6, 6.4, -0.4, 0.9, -11, 1],             // the guard waves everyone to the open doors
+  [20.0, 0.12, 4.6, 6.8, -0.5, 0.8, -15, 1],             // out through the entrance
+  [24.5, 0.05, 8.6, 9.6, -0.6, 0.5, -20.5, 0.7],         // crane up over the facade: assembly point outside
 ];
 function camChannel(t, ch) {
   const K = CAM_KEYS;
@@ -1077,8 +1035,6 @@ function camChannel(t, ch) {
 }
 
 // ---------------------------------------------------------------- per-frame update
-const tmpV = new THREE.Vector3();
-
 function applyWalk(rig, phase, amp, armAmp = 0.35) {
   const sw = Math.sin(phase) * 0.42 * amp;
   rig.legs[1].hip.rotation.x = -sw;
@@ -1088,132 +1044,62 @@ function applyWalk(rig, phase, amp, armAmp = 0.35) {
   rig.body.position.y = Math.abs(Math.sin(phase)) * 0.035 * amp - 0.015 * amp;
   return Math.sin(phase) * armAmp * amp; // arm swing (left arm sign)
 }
+const FIRE_POS = new THREE.Vector3(6.8, 0, 19.6);
 
 function update(t) {
-  // ---------------- visitor
-  const s = distAt(t), v = speedAt(t);
-  const p = pathAt(s);
-  user.root.position.set(p.x, 0, p.z);
-  // turn to face the inspection table (max 90°, never facing back toward the entrance)
-  const faceTable = smoother(3.7, 4.6, t) * (1 - smoother(10.7, 11.5, t));
-  user.root.rotation.y = p.heading - (Math.PI / 2) * faceTable;
-  const amp = clamp(v / 1.5);
-  const phase = (s / 0.72) * Math.PI;
-  const armSw = applyWalk(user, phase, amp, 0.32);
-  // right hand: holds the ID card in front of the chest throughout
-  user.arms[-1].shoulder.rotation.set(-0.42 - 0.08 * armSw, 0, 0.05);
-  user.arms[-1].elbow.rotation.set(-1.15, 0, 0);
-  // left hand: carries the bag, puts it on the table, picks it back up
-  const reach = smoother(4.55, 5.2, t) * (1 - smoother(5.5, 6.1, t)) + smoother(9.9, 10.4, t) * (1 - smoother(10.6, 11.2, t));
-  user.arms[1].shoulder.rotation.set(lerp(armSw, -1.42, reach), 0, lerp(-0.12, -0.05, reach));
-  user.arms[1].elbow.rotation.set(lerp(-0.12, -0.05, reach), 0, 0);
-  // the card is subtly highlighted while it is being read (it never leaves the hand)
-  const cardGlow = pulse(t, T.scanStart, T.scanStart + 0.4, T.verified + 0.2, T.verified + 0.8) * (0.55 + 0.45 * Math.sin(t * 12));
-  user.cardMats.forEach(m => { m.emissiveIntensity = cardGlow * 0.6; });
+  // ---------------- people
+  for (const p of people) {
+    const { h, a, i } = p;
+    const s = sampleAgent(i, t);
+    h.root.position.set(s.x, 0, s.z);
+    h.root.rotation.y = s.h;
+    const amp = clamp(s.v / 1.45);
+    const armSw = applyWalk(h, (s.d / 0.72) * Math.PI, amp, 0.34);
+    h.upper.rotation.x = 0.03 + 0.07 * amp + Math.sin(t * 1.7 + p.ph) * 0.01;
+    h.arms[1].shoulder.rotation.set(armSw, 0, -0.04);
+    h.arms[1].elbow.rotation.set(-0.15 - 0.25 * amp, 0, 0);
+    h.arms[-1].shoulder.rotation.set(-armSw, 0, 0.04);
+    h.arms[-1].elbow.rotation.set(-0.15 - 0.25 * amp, 0, 0);
+    if (p.cover) { // left hand held over the nose and mouth
+      h.arms[1].shoulder.rotation.set(-1.2, 0.0, -0.95);
+      h.arms[1].elbow.rotation.set(-1.75, 0, 0);
+    }
+    // before setting off they turn their head toward the fire; while walking they glance around
+    const waiting = t < a.delay + 0.3;
+    let look = 0;
+    if (waiting) {
+      const toFire = Math.atan2(FIRE_POS.x - s.x, FIRE_POS.z - s.z) - s.h;
+      look = clamp(Math.atan2(Math.sin(toFire), Math.cos(toFire)), -1.1, 1.1);
+    } else look = (0.25 * Math.sin(t * 0.9 + p.ph) + 0.1 * p.look) * (1 - 0.5 * amp);
+    h.headPivot.rotation.set(0.06 + 0.04 * amp, look, 0);
+  }
 
-  // ---------------- bag
-  user.root.updateMatrixWorld(true);
-  const hand = user.arms[1].tip.getWorldPosition(tmpV.set(0, 0, 0)).clone();
-  const onTable = smoother(4.95, 5.3, t) * (1 - smoother(10.4, 10.65, t));
-  bag.root.position.lerpVectors(hand, TABLE_SPOT, onTable);
-  bag.root.rotation.y = onTable > 0.5 ? -Math.PI : user.root.rotation.y - Math.PI / 2;
-  const lidOpen = smoother(5.85, 6.45, t) * (1 - smoother(8.95, 9.5, t));
-  bag.lid.rotation.x = -1.95 * lidOpen;
-
-  // ---------------- guard
+  // ---------------- guard: right arm points to the exit, left arm waves people on
   const g = guard;
-  const breathe = Math.sin(t * 1.7) * 0.012;
-  g.body.position.y = breathe * 0.3;
-  const ask = pulse(t, 3.6, 4.2, 4.9, 5.5);           // polite "please" gesture
-  const openLid = pulse(t, 5.45, 5.95, 6.3, 6.8);      // left hand opens the bag
-  const closeLid = pulse(t, 8.7, 9.05, 9.45, 9.85);    // left hand closes it
-  const inspect = pulse(t, 5.6, 6.3, 8.9, 9.5);        // leaning, looking inside
-  const wandUse = pulse(t, 6.4, 6.9, 8.6, 9.0);        // sweeping the detector wand over the bag
-  const allow = pulse(t, 9.7, 10.3, 11.4, 12.2);       // gestures toward the gate
-  const watch = smoother(11.2, 12.6, t);
-  g.upper.rotation.x = 0.04 + 0.3 * inspect + 0.04 * ask + breathe;
-  g.headPivot.rotation.x = 0.42 * inspect - 0.06 * allow;
-  g.headPivot.rotation.y = -0.55 * watch * (1 - 0.3 * inspect);
-  const lh = Math.max(openLid, closeLid);
-  g.arms[1].shoulder.rotation.set(-0.55 * ask - 1.0 * lh, 0, 0.06 + 0.1 * ask);
-  g.arms[1].elbow.rotation.set(-1.15 * ask - 0.45 * lh, 0, 0);
-  const sweep = Math.sin((t - 6.4) * 4.2) * 0.32 * wandUse;
-  g.arms[-1].shoulder.rotation.set(-1.0 * wandUse - 0.35 * allow, 0, -0.06 + sweep - 0.95 * allow);
-  g.arms[-1].elbow.rotation.set(-0.15 - 0.55 * wandUse - 0.25 * allow, 0, 0);
-  g.wand.rotation.x = -0.6 * wandUse;
-  const wandBlink = wandUse * (Math.sin(t * 18) > 0 ? 1 : 0.2);
-  g.wandLedMat.emissive.set(t > 8.3 ? '#2ee860' : '#3aa0ff');
-  g.wandLedMat.emissiveIntensity = Math.max(wandBlink, pulse(t, 8.3, 8.4, 9.2, 9.5)) * 2.5;
+  g.body.position.y = Math.sin(t * 1.7) * 0.004;
   for (const sd of [1, -1]) { g.legs[sd].hip.rotation.x = 0; g.legs[sd].knee.rotation.x = 0; }
+  const wave = Math.sin(t * 5.2);
+  const guide = smooth(0.4, 1.0, t);
+  g.upper.rotation.x = 0.03;
+  g.arms[-1].shoulder.rotation.set(-0.35 * guide, 0, -1.25 * guide + 0.12 * wave * guide);
+  g.arms[-1].elbow.rotation.set(-0.15 - 0.2 * guide, 0, 0);
+  g.arms[1].shoulder.rotation.set(-1.1 * guide, 0, 0.15);
+  g.arms[1].elbow.rotation.set(-0.9 * guide - 0.6 * guide * (0.5 + 0.5 * wave), 0, 0);
+  g.headPivot.rotation.set(0.05, 0.5 * Math.sin(t * 0.8), 0);
 
-  // ---------------- gate / RFID
-  const scanning = t >= T.scanStart && t < T.verified;
-  const granted = t >= T.verified && t < T.closeEnd;
-  const scanFade = pulse(t, T.scanStart, T.scanStart + 0.5, T.verified - 0.1, T.verified + 0.35);
-  drawScreen(granted ? 'ok' : scanning ? 'scan' : 'idle', t);
-  for (const c of gate.checks) c.visible = granted;
-  for (const x of gate.xMarks) x.visible = !granted;
-  glowDiscMat.opacity = granted ? 0.35 + 0.15 * Math.sin(t * 6) : 0;
-  if (granted) { ledMat.emissive.set('#27e05a'); ledMat.emissiveIntensity = 1.6; }
-  else if (scanning) { ledMat.emissive.set('#3fb0ff'); ledMat.emissiveIntensity = 0.6 + 0.9 * (0.5 + 0.5 * Math.sin(t * 9)); }
-  else { ledMat.emissive.set('#6fa9d6'); ledMat.emissiveIntensity = 0.35; }
-  fx.gateLight.color.set(granted ? '#35ff6e' : '#3fb0ff');
-  fx.gateLight.intensity = granted ? 2.2 * (1 - smooth(16.4, 17.5, t)) : 1.8 * scanFade;
-
-  const flapU = smoother(T.openStart, T.openEnd, t) * (1 - smoother(T.closeStart, T.closeEnd, t));
-  for (const f of gate.flaps) f.pivot.rotation.y = f.openAngle * flapU;
-
-  // scanning effects around the visitor
-  const up = user.root.position;
-  fx.floorRings.forEach((r, i) => {
-    const ph = ((t - T.scanStart) * 1.1 + i / 3) % 1;
-    r.position.set(up.x, 0.02, up.z);
-    r.scale.setScalar(0.35 + ph * 1.1);
-    r.material.opacity = scanFade * (1 - ph) * 0.75;
-  });
-  const bandPh = (Math.sin((t - T.scanStart) * 3.2 - Math.PI / 2) + 1) / 2;
-  fx.scanBand.position.set(up.x, 0.1 + bandPh * 2.25, up.z);
-  fx.scanBand.material.opacity = scanFade * 0.85;
-  fx.scanField.position.set(up.x, 1.25, up.z);
-  fx.scanField.material.opacity = scanFade * 0.07;
-  // waves from the reader toward the card + data particles from the card to the reader
-  const card = user.card.getWorldPosition(new THREE.Vector3());
-  const rd = readerHead.getWorldPosition(new THREE.Vector3());
-  fx.readerWaves.forEach((w, i) => {
-    const ph = ((t - T.scanStart) * 1.3 + i / 3) % 1;
-    w.position.lerpVectors(rd, card, ph * 0.8);
-    w.lookAt(card);
-    w.rotation.z += Math.PI / 2;
-    w.scale.setScalar(0.6 + ph * 1.6);
-    w.material.opacity = scanFade * (1 - ph) * 0.8;
-  });
-  fx.particles.forEach((pt, i) => {
-    const ph = ((t - T.scanStart) * 0.9 + i / fx.particles.length) % 1;
-    pt.position.lerpVectors(card, rd, ph);
-    pt.position.y += Math.sin(ph * Math.PI) * 0.25;
-    pt.material.opacity = scanFade * Math.sin(ph * Math.PI) * 0.95;
-  });
-  const sr = clamp((t - T.verified) / 0.9);
-  fx.successRing.position.set(0, 0.025, -0.9);
-  fx.successRing.scale.setScalar(0.4 + sr * 1.8);
-  fx.successRing.material.opacity = t >= T.verified ? (1 - sr) * 0.9 : 0;
-
-  // ---------------- background people (after the visitor is placed, so they can look at them)
-  for (const e of extras) e.update(t);
-
-  // ---------------- entrance doors (visitor has just come in; they slide shut behind)
-  const doorOpen = 1 - smoother(0.8, 2.6, t);
-  for (const d of entranceDoors) d.obj.position.x = d.closedX + d.dir * 1.15 * doorOpen;
+  // ---------------- fire alarm, fire and smoke
+  updateEmergency(t);
 
   // ---------------- camera
   const ch = i => camChannel(t, i);
   const follow = clamp(ch(7));
+  const up = user.root.position;
   const keyT = new THREE.Vector3(ch(4), ch(5), ch(6));
   const userAnchor = new THREE.Vector3(up.x, 1.2, up.z);
   const anchor = keyT.clone().lerp(userAnchor, follow);
-  const az = ch(1), h = ch(2), r = ch(3);
-  camera.position.set(anchor.x + Math.sin(az) * r, anchor.y + h, anchor.z + Math.cos(az) * r);
-  const look = anchor.clone().add(new THREE.Vector3(0, 0, 2.2 * follow * follow));
+  const az = ch(1), hh = ch(2), r = ch(3);
+  camera.position.set(anchor.x + Math.sin(az) * r, anchor.y + hh, anchor.z + Math.cos(az) * r);
+  const look = anchor.clone().add(new THREE.Vector3(0, 0, -2.2 * follow * follow));
   camera.lookAt(look);
 
   // shadow frustum follows the action
