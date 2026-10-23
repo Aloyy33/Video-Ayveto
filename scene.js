@@ -329,6 +329,11 @@ const TABLE = { x: -1.25, z: -5.0, top: 1.0 };
   scene.add(t);
 }
 
+// reception desk in the lobby, before the gate (visitor side faces the entrance and the walkway)
+const RECEPTION = { x: 4.4, z: -5.6, ry: 0.5 };
+const SOFAS = [[7.6, -9.5, -Math.PI / 2], [5.2, -11.6, 0]];
+const LOUNGE_CHAIRS = [[-4.6, 10, Math.PI / 2], [-3.0, 11.6, Math.PI]];
+
 // ---------------------------------------------------------------- building context
 // Layout (z grows into the company): street/outside (z < -14) -> glass entrance with
 // automatic sliding doors (z = -14) -> lobby with security checkpoint -> AYVETO gate (z = 0)
@@ -432,8 +437,7 @@ const entranceDoors = [];
     for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.18, 0.62, 0.85), B.sofa, sx * 1.01, 0.31, 0, g);
     scene.add(g);
   };
-  sofa(7.6, -9.5, -Math.PI / 2);
-  sofa(5.2, -11.6, 0);
+  for (const [x, z, ry] of SOFAS) sofa(x, z, ry);
   add(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 32), B.wood, 5.6, 0.45, -9.3);
   add(new THREE.CylinderGeometry(0.06, 0.06, 0.42, 12), B.frame, 5.6, 0.21, -9.3);
   const rug = add(new THREE.PlaneGeometry(4.2, 3.4), mat('#c9b79c', { roughness: 1 }), 6.2, 0.006, -9.8); rug.rotation.x = -Math.PI / 2; rug.userData.receiveOnly = true;
@@ -459,7 +463,7 @@ const entranceDoors = [];
     add(new THREE.CylinderGeometry(0.4, 0.4, 0.15, 32), B.woodDark, x, 0.075, z);
   }
   // reception desk with monitors
-  const desk = new THREE.Group(); desk.position.set(4.3, 0, 11); desk.rotation.y = -0.35;
+  const desk = new THREE.Group(); desk.position.set(RECEPTION.x, 0, RECEPTION.z); desk.rotation.y = RECEPTION.ry;
   addEdges(mesh(new THREE.BoxGeometry(3.2, 1.1, 0.8), B.wallWarm, 0, 0.55, 0, desk));
   mesh(new THREE.BoxGeometry(3.22, 0.14, 0.82), M.navy, 0, 0.75, 0, desk);
   mesh(new THREE.BoxGeometry(3.4, 0.06, 1.0), B.wood, 0, 1.13, 0, desk);
@@ -467,9 +471,16 @@ const entranceDoors = [];
     mesh(new THREE.BoxGeometry(0.55, 0.34, 0.03), mat('#151b22', { roughness: 0.3 }), mx, 1.42, 0.25, desk).rotation.y = Math.PI;
     mesh(new THREE.BoxGeometry(0.05, 0.2, 0.05), B.frame, mx, 1.24, 0.27, desk);
   }
+  const recTex = canvasTex(512, 96, (g, w, h) => {
+    g.fillStyle = '#0f3b5f'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#ffffff'; g.font = 'bold 54px "Noto Sans", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('RECEPTION', w / 2, h / 2 + 3);
+  });
+  const recSign = mesh(new THREE.PlaneGeometry(1.7, 0.32), new THREE.MeshStandardMaterial({ map: recTex, roughness: 0.5 }), 0, 0.42, -0.405, desk);
+  recSign.rotation.y = Math.PI;
   scene.add(desk);
   // lounge chairs and coffee table in the office area (left)
-  for (const [x, z, ry] of [[-4.6, 10, Math.PI / 2], [-3.0, 11.6, Math.PI]]) {
+  for (const [x, z, ry] of LOUNGE_CHAIRS) {
     const c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = ry;
     mesh(new THREE.BoxGeometry(0.85, 0.42, 0.85), mat('#d58b3c', { roughness: 0.8 }), 0, 0.21, 0, c);
     mesh(new THREE.BoxGeometry(0.85, 0.5, 0.16), mat('#d58b3c', { roughness: 0.8 }), 0, 0.62, -0.35, c);
@@ -670,6 +681,30 @@ function buildHair(head, o) {
   }
 }
 
+// other hair styles for the background people
+function styleHair(h, kind, m) {
+  if (kind === 'short') buildHair(h.head, { hair: m, cap: 1.4, tilt: -0.3, thick: 0.004 });
+  else if (kind === 'curly') buildHair(h.head, { hair: m, cap: 1.3, tilt: -0.4, thick: 0.004, curls: 380, curlR: 0.0095 });
+  else if (kind === 'bob') {
+    buildHair(h.head, { hair: m, cap: 1.5, tilt: -0.35, thick: 0.007 });
+    mesh(new THREE.SphereGeometry(1, 32, 24), m, 0, -0.012, -0.035, h.head).scale.set(0.099, 0.108, 0.104);
+  } else if (kind === 'bun') {
+    buildHair(h.head, { hair: m, cap: 1.45, tilt: -0.3, thick: 0.005 });
+    mesh(new THREE.SphereGeometry(0.043, 20, 14), m, 0, 0.075, -0.108, h.head);
+  } else if (kind === 'hijab') {
+    const g = new THREE.SphereGeometry(1, 48, 32, 0, Math.PI * 2, 0, 2.2); g.rotateX(-1.2);
+    const hm = m.clone(); hm.side = THREE.DoubleSide;
+    mesh(headGeo(g, 1.0, 0.01), hm, 0, 0, 0, h.head);
+    mesh(new THREE.CylinderGeometry(0.07, 0.075, 0.16, 24), hm, 0, 0.6, 0.0, h.upper);
+    // shawl: follows the torso surface from the neck down over the shoulders and upper chest
+    const prof = [];
+    for (let y = 0.34; y <= 0.575; y += 0.015) prof.push(new THREE.Vector2(torsoR(y) + 0.012, y - TORSO_Y));
+    prof.push(new THREE.Vector2(0.068, 0.6 - TORSO_Y));
+    const shawl = mesh(new THREE.LatheGeometry(prof, 36), hm, 0, TORSO_Y, 0, h.upper);
+    shawl.scale.set(TORSO_SX, 1, TORSO_SZ * 1.1);
+  }
+}
+
 // The visitor: natural face, short curly hair, yellow polo shirt, green trousers.
 function buildUser() {
   const skin = mat('#8d5a3a', { roughness: 0.6 });
@@ -771,6 +806,158 @@ scene.add(user.root, guard.root);
 const GUARD_POS = new THREE.Vector3(-2.02, 0, -4.95);
 guard.root.position.copy(GUARD_POS);
 guard.root.rotation.y = Math.PI / 2; // faces the visitor across the table
+
+// ---------------------------------------------------------------- people around the building
+// Background people make the lobby and office feel alive: a receptionist, a visitor at the
+// counter, people chatting, people sitting on the sofas and lounge chairs, an office worker walking.
+const extras = [];
+{
+  const P = (o) => {
+    const h = buildHuman({
+      skin: mat(o.skin, { roughness: 0.6 }), skinShade: mat(new THREE.Color(o.skin).multiplyScalar(0.88).getStyle(), { roughness: 0.65 }),
+      shirt: mat(o.shirt, { roughness: 0.65 }), collar: o.collar ? mat(o.collar, { roughness: 0.6 }) : null,
+      pants: mat(o.pants, { roughness: 0.7 }), shoe: mat(o.shoe || '#1b1d21', { roughness: 0.4 }), shortSleeve: !!o.short,
+      lip: o.lip || '#8a4c40', lipLine: o.lipLine || '#4a2620', brow: o.brow || '#1d140e', iris: '#3a2416',
+    });
+    styleHair(h, o.hair, mat(o.hairColor || '#16110d', { roughness: 0.6 }));
+    h.root.position.set(o.x, 0, o.z);
+    h.root.rotation.y = o.ry;
+    scene.add(h.root);
+    return h;
+  };
+  const faceTo = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
+  const cup = (h, s = 1) => { // coffee cup in one hand
+    const c = mesh(new THREE.CylinderGeometry(0.035, 0.028, 0.1, 16), mat('#f4f4f4', { roughness: 0.4 }), 0, -0.31, 0.045, h.arms[s].elbow);
+    c.rotation.x = 1.6; // upright while the forearm is raised
+    mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.02, 16), mat('#6b4a32'), 0, 0.045, 0, c);
+  };
+  const phone = (h) => {
+    const g = mesh(new THREE.BoxGeometry(0.075, 0.15, 0.01), mat('#14181d', { roughness: 0.3 }), 0, -0.32, 0.05, h.arms[-1].elbow);
+    g.rotation.x = 0.3;
+    mesh(new THREE.PlaneGeometry(0.066, 0.135), new THREE.MeshBasicMaterial({ color: '#7fb8e8' }), 0, 0, 0.0055, g);
+  };
+  const sit = (h) => { // seated pose on a 0.42 m seat
+    h.body.position.y = -0.43;
+    for (const sd of [1, -1]) { h.legs[sd].hip.rotation.set(-Math.PI / 2 + 0.05, 0, sd * 0.06); h.legs[sd].knee.rotation.x = Math.PI / 2 - 0.1; }
+    h.upper.rotation.x = -0.24; // leaning back against the backrest
+  };
+  const breathe = (h, t, ph) => { h.upper.rotation.x += Math.sin(t * 1.6 + ph) * 0.012; };
+  // talking: alternating speaker, small arm gestures + nods, listeners look at the speaker
+  const talk = (h, t, ph, speaking, look, baseArm = [-0.08, -0.15]) => {
+    const g = speaking * (0.5 + 0.5 * Math.sin(t * 3.1 + ph));
+    h.arms[1].shoulder.rotation.set(baseArm[0] - 0.45 * g, 0, 0.05 + 0.1 * g);
+    h.arms[1].elbow.rotation.set(baseArm[1] - 1.0 * g, 0, 0);
+    h.headPivot.rotation.set(0.05 + 0.06 * Math.sin(t * (speaking ? 4.2 : 1.3) + ph) * (0.4 + speaking), look, 0);
+  };
+  const speakerOf = (t, n, period = 3.4, ph = 0) => Math.floor((t + ph) / period) % n;
+  const ease = (t, n, period, ph, i) => { // smooth 0..1 "is speaking" for person i
+    const u = ((t + ph) / period) % n, d0 = Math.abs(u - i - 0.5), d = Math.min(d0, n - d0);
+    return smooth(0.56, 0.38, d);
+  };
+  void speakerOf;
+
+  // --- receptionist behind the lobby desk + a visitor asking something at the counter
+  const R = RECEPTION, c = Math.cos(R.ry), sn = Math.sin(R.ry);
+  const local = (lx, lz) => [R.x + lx * c + lz * sn, R.z - lx * sn + lz * c];
+  const [rx, rz] = local(0, 0.72), [vx, vz] = local(0.35, -0.85);
+  const recep = P({ x: rx, z: rz, ry: R.ry + Math.PI, skin: '#c68e64', shirt: '#203a5c', collar: '#f2f2f2', pants: '#1c2533', hair: 'bun', hairColor: '#1a120c', lip: '#a65a50' });
+  const asker = P({ x: vx, z: vz, ry: faceTo(vx, vz, rx, rz), skin: '#e0b48c', shirt: '#8c96a0', collar: '#7a838c', pants: '#2e3a52', hair: 'short', hairColor: '#3a2a1e', short: true });
+  extras.push({ update: t => {
+    // greets the visitor coming in, then talks with the person at the counter / checks the monitor
+    const greet = pulse(t, 0.6, 1.2, 2.6, 3.2);
+    const toUser = faceTo(rx, rz, user.root.position.x, user.root.position.z) - (R.ry + Math.PI);
+    const sp = ease(t, 2, 2.8, 0.4, 0);
+    talk(recep, t, 0, sp * (1 - greet), lerp(-0.25, Math.atan2(Math.sin(toUser), Math.cos(toUser)), greet), [-0.35, -0.9]);
+    recep.arms[-1].shoulder.rotation.set(lerp(-0.35, -0.2, greet), 0, lerp(-0.05, -1.2, greet));
+    recep.arms[-1].elbow.rotation.set(lerp(-0.9, -1.6, greet) + 0.25 * greet * Math.sin(t * 9), 0, 0);
+    recep.upper.rotation.x = 0.04; breathe(recep, t, 0.3);
+    talk(asker, t, 1.7, 1 - sp, 0.0, [-0.45, -0.85]);
+    asker.arms[-1].shoulder.rotation.set(-0.45, 0, -0.05); asker.arms[-1].elbow.rotation.set(-0.85, 0, 0);
+    asker.upper.rotation.x = 0.03; breathe(asker, t, 1.1);
+  } });
+
+  // --- two people chatting on the long sofa, one reading a phone on the other sofa
+  {
+    const [sx, sz] = SOFAS[0];
+    const a = P({ x: sx - 0.03, z: sz - 0.5, ry: -Math.PI / 2, skin: '#d9a77c', shirt: '#7a2e3a', pants: '#34363d', hair: 'hijab', hairColor: '#5e7d6a', lip: '#a35e55' });
+    const b = P({ x: sx - 0.03, z: sz + 0.5, ry: -Math.PI / 2, skin: '#a06a45', shirt: '#e8ecef', collar: '#cfd6dc', pants: '#b39b72', hair: 'short' });
+    sit(a); sit(b);
+    const [qx, qz] = SOFAS[1];
+    const d = P({ x: qx + 0.3, z: qz + 0.03, ry: 0, skin: '#6b4228', shirt: '#2f7f86', pants: '#25324a', hair: 'curly', short: true });
+    sit(d); phone(d);
+    extras.push({ update: t => {
+      const sa = ease(t, 2, 3.0, 0.0, 0);
+      sit(a); sit(b); sit(d);
+      talk(a, t, 0.2, sa, -0.75, [-0.3, -0.75]); breathe(a, t, 0.1);
+      talk(b, t, 2.1, 1 - sa, 0.75, [-0.3, -0.75]); breathe(b, t, 1.9);
+      for (const h of [a, b]) { h.arms[-1].shoulder.rotation.set(-0.3, 0, -0.05); h.arms[-1].elbow.rotation.set(-0.75, 0, 0); }
+      d.arms[-1].shoulder.rotation.set(-0.35, 0, 0.12); d.arms[-1].elbow.rotation.set(-1.25, 0, 0);
+      d.arms[1].shoulder.rotation.set(-0.35, 0, -0.1); d.arms[1].elbow.rotation.set(-1.1, 0, 0);
+      d.headPivot.rotation.set(0.42 + 0.03 * Math.sin(t * 0.9), 0.05, 0); breathe(d, t, 2.7);
+    } });
+  }
+
+  // --- standing chat in the lobby (left side, by the artwork)
+  {
+    const pts = [[-6.0, -8.2], [-5.1, -8.9], [-6.2, -9.3]];
+    const cx = -5.75, cz = -8.8;
+    const ppl = [
+      P({ x: pts[0][0], z: pts[0][1], ry: faceTo(...pts[0], cx, cz), skin: '#f0c9a6', shirt: '#9cc3e6', pants: '#3a3a44', hair: 'bob', hairColor: '#4a2f1d', lip: '#b8645c' }),
+      P({ x: pts[1][0], z: pts[1][1], ry: faceTo(...pts[1], cx, cz), skin: '#a06a45', shirt: '#6d7a3a', collar: '#5b6630', pants: '#2b2b2b', hair: 'short', short: true }),
+      P({ x: pts[2][0], z: pts[2][1], ry: faceTo(...pts[2], cx, cz), skin: '#e6b98f', shirt: '#d9d2c4', collar: '#bfb7a8', pants: '#3b4a63', hair: 'short', hairColor: '#2a2018' }),
+    ];
+    cup(ppl[1], -1); cup(ppl[2], 1);
+    extras.push({ update: t => ppl.forEach((h, i) => {
+      const spk = ease(t, 3, 2.6, 0.7, i);
+      // look at the current speaker (or at the group centre when speaking)
+      const u = Math.floor(((t + 0.7) / 2.6) % 3), sp = pts[u];
+      const want = i === u ? 0 : Math.atan2(Math.sin(faceTo(...pts[i], ...sp) - h.root.rotation.y), Math.cos(faceTo(...pts[i], ...sp) - h.root.rotation.y));
+      talk(h, t, i * 1.3, spk, clamp(want, -0.7, 0.7) * 0.8);
+      h.arms[-1].shoulder.rotation.set(i === 1 ? -0.4 : -0.05, 0, -0.06); h.arms[-1].elbow.rotation.set(i === 1 ? -1.2 : -0.12, 0, 0);
+      if (i === 2) { h.arms[1].shoulder.rotation.set(-0.4, 0, 0.06); h.arms[1].elbow.rotation.set(-1.2, 0, 0); }
+      h.upper.rotation.x = 0.02; breathe(h, t, i);
+    }) });
+  }
+
+  // --- office: a group of colleagues chatting, two people at the lounge table, a walker
+  {
+    const pts = [[3.6, 10.2], [4.6, 10.6], [4.1, 11.5]];
+    const cx = 4.1, cz = 10.75;
+    const ppl = [
+      P({ x: pts[0][0], z: pts[0][1], ry: faceTo(...pts[0], cx, cz), skin: '#8d5a3a', shirt: '#ffffff', collar: '#e4e8ec', pants: '#2a3242', hair: 'short' }),
+      P({ x: pts[1][0], z: pts[1][1], ry: faceTo(...pts[1], cx, cz), skin: '#efc7a1', shirt: '#2d5f8b', pants: '#2b2b2b', hair: 'bun', hairColor: '#20140d', lip: '#b8645c' }),
+      P({ x: pts[2][0], z: pts[2][1], ry: faceTo(...pts[2], cx, cz), skin: '#c08a60', shirt: '#9e3b32', pants: '#3a3f4a', hair: 'hijab', hairColor: '#2c3e57', lip: '#a35e55' }),
+    ];
+    cup(ppl[0], 1);
+    const [c1, c2] = LOUNGE_CHAIRS;
+    const s1 = P({ x: c1[0] + 0.03, z: c1[1], ry: c1[2], skin: '#e0b48c', shirt: '#4d6b4a', pants: '#24282e', hair: 'short', hairColor: '#4a3524', short: true });
+    const s2 = P({ x: c2[0], z: c2[1] - 0.03, ry: c2[2], skin: '#6b4228', shirt: '#e6c34a', pants: '#2e3a52', hair: 'curly' });
+    sit(s1); sit(s2); cup(s1, -1);
+    const walker = P({ x: 8, z: 18.5, ry: -Math.PI / 2, skin: '#d9a77c', shirt: '#3d4a5c', collar: '#ffffff', pants: '#1f242c', hair: 'short' });
+    const folder = mesh(new THREE.BoxGeometry(0.03, 0.3, 0.23), mat('#2f7fc4'), 0.0, -0.28, 0.06, walker.arms[1].elbow); void folder;
+    extras.push({ update: t => {
+      ppl.forEach((h, i) => {
+        const spk = ease(t, 3, 2.9, 0.2, i);
+        talk(h, t, i * 0.9, spk, 0);
+        h.arms[-1].shoulder.rotation.set(-0.05, 0, -0.06); h.arms[-1].elbow.rotation.set(-0.12, 0, 0);
+        if (i === 0) { h.arms[1].shoulder.rotation.set(-0.4, 0, 0.06); h.arms[1].elbow.rotation.set(-1.2, 0, 0); }
+        breathe(h, t, i);
+      });
+      sit(s1); sit(s2);
+      const sa = ease(t, 2, 3.3, 1.0, 0);
+      talk(s1, t, 0.4, sa, 0.35, [-0.3, -0.75]); talk(s2, t, 1.4, 1 - sa, -0.35, [-0.3, -0.75]);
+      s1.arms[-1].shoulder.rotation.set(-0.45, 0, 0); s1.arms[-1].elbow.rotation.set(-1.1, 0, 0);
+      s2.arms[-1].shoulder.rotation.set(-0.3, 0, -0.05); s2.arms[-1].elbow.rotation.set(-0.75, 0, 0);
+      breathe(s1, t, 0.5); breathe(s2, t, 2.2);
+      // office worker walking across the back of the office (right -> left), never near the visitor
+      const wx = 8.5 - 0.7 * t;
+      walker.root.position.set(wx, 0, 18.5);
+      const sw = applyWalk(walker, (0.7 * t / 0.68) * Math.PI, 0.8, 0.3);
+      walker.arms[-1].shoulder.rotation.set(-sw, 0, -0.05); walker.arms[-1].elbow.rotation.set(-0.2, 0, 0);
+      walker.arms[1].shoulder.rotation.set(-0.15, 0, 0.04); walker.arms[1].elbow.rotation.set(-1.3, 0, 0);
+    } });
+  }
+}
 
 // ---------------------------------------------------------------- the visitor's bag
 const bag = { root: new THREE.Group() };
@@ -1011,6 +1198,9 @@ function update(t) {
   fx.successRing.scale.setScalar(0.4 + sr * 1.8);
   fx.successRing.material.opacity = t >= T.verified ? (1 - sr) * 0.9 : 0;
 
+  // ---------------- background people (after the visitor is placed, so they can look at them)
+  for (const e of extras) e.update(t);
+
   // ---------------- entrance doors (visitor has just come in; they slide shut behind)
   const doorOpen = 1 - smoother(0.8, 2.6, t);
   for (const d of entranceDoors) d.obj.position.x = d.closedX + d.dir * 1.15 * doorOpen;
@@ -1033,7 +1223,10 @@ function update(t) {
 
 function renderAt(t) {
   update(t);
-  if (location.search.includes('closeup')) { // debug-only face close-up
+  if (params.has('cam')) { // debug-only: free camera "x,y,z,tx,ty,tz"
+    const v = params.get('cam').split(',').map(Number);
+    camera.position.set(v[0], v[1], v[2]); camera.lookAt(v[3], v[4], v[5]);
+  } else if (location.search.includes('closeup')) { // debug-only face close-up
     const g = location.search.includes('closeupguard');
     const who = g ? guard.root : user.root;
     const hp = new THREE.Vector3(); who.getWorldPosition(hp); hp.y += 1.67;

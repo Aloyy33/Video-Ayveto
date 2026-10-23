@@ -30,7 +30,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 page.on('console', m => { if (m.type() === 'error') console.error('[page]', m.text()); });
 page.on('pageerror', e => console.error('[page error]', e.message));
-await page.goto(`http://localhost:${port}/index.html?render&w=${W}&h=${H}${args.closeup?'&closeup'+(args.closeup===true?'':args.closeup):''}`);
+await page.goto(`http://localhost:${port}/index.html?render&w=${W}&h=${H}${args.closeup?'&closeup'+(args.closeup===true?'':args.closeup):''}${args.cam?'&cam='+args.cam:''}`);
 await page.waitForFunction(() => window.sceneReady === true, null, { timeout: 60000 });
 await page.evaluate(() => document.fonts.ready);
 
