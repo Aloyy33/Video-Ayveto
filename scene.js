@@ -79,8 +79,10 @@ const M = {
   brown: mat('#8a5a2e', { roughness: 0.55 }),
   black: mat('#15181c', { roughness: 0.4 }),
   // guard
-  suit: mat('#eef0f2', { roughness: 0.5 }),
-  suitShade: mat('#8d969f', { roughness: 0.5 }),
+  suit: mat('#1f3354', { roughness: 0.6 }),        // navy security shirt
+  suitShade: mat('#162540', { roughness: 0.6 }),
+  pants: mat('#121a28', { roughness: 0.65 }),
+  userHair: mat('#1c120b', { roughness: 0.75 }),
   skin: mat('#efc7a1', { roughness: 0.6 }),
   hair: mat('#121418', { roughness: 0.3 }),
   gold: mat('#d8aa3a', { metalness: 0.7, roughness: 0.3 }),
@@ -483,7 +485,7 @@ function limb(rTop, rBot, len, material, parent, x = 0, y = 0, z = 0) {
   return pivot;
 }
 
-// The visitor: egg-shaped brown head, yellow shirt, green trousers, black shoes.
+// The visitor: egg-shaped brown head with short curly hair, yellow shirt, green trousers, black shoes.
 function buildUser() {
   const root = new THREE.Group();
   const body = new THREE.Group(); root.add(body);
@@ -530,6 +532,21 @@ function buildUser() {
     nose.scale.set(0.85, 1, 0.85);
     // smile: lower half of a torus, tilted to follow the curve of the head
     const my = -0.13;
+    // short curly hair: a cap that sits on the head ellipsoid, tilted back so the forehead stays clear
+    const hairG = new THREE.Group(); hairG.position.set(0, HY, 0); hairG.scale.set(1, SY, 1); body.add(hairG);
+    const CAP = 1.2, TILT = -0.4, HR = R * 1.05;
+    const cap = mesh(new THREE.SphereGeometry(HR, 40, 24, 0, Math.PI * 2, 0, CAP), M.userHair, 0, 0, 0, hairG);
+    cap.rotation.x = TILT;
+    const axis = new THREE.Vector3(0, Math.cos(TILT), Math.sin(TILT));
+    const curl = new THREE.SphereGeometry(0.038, 10, 8);
+    const N = 320, v = new THREE.Vector3();
+    for (let i = 0; i < N; i++) {           // fibonacci points on the sphere, kept inside the cap
+      const yy = 1 - 2 * (i + 0.5) / N, rr = Math.sqrt(1 - yy * yy), ph = i * 2.39996;
+      v.set(Math.cos(ph) * rr, yy, Math.sin(ph) * rr);
+      if (v.dot(axis) < Math.cos(CAP - 0.1)) continue;
+      const c = mesh(curl, M.userHair, v.x * HR, v.y * HR, v.z * HR, hairG);
+      c.scale.set(1, 1 / SY, 1);
+    }
     // smile: a chain of beads following the head surface (a U-shaped curve)
     const bead = new THREE.SphereGeometry(0.019, 10, 8);
     for (let i = 0; i <= 22; i++) {
@@ -567,15 +584,15 @@ function buildUser() {
   return { root, body, legs, arms, card, cardMats: [cardMat, edgeCard] };
 }
 
-// The security guard: white suit, black pompadour hair, handheld detector wand.
+// The security guard: navy security uniform (cap, badge, SECURITY patches, radio), handheld detector wand.
 function buildGuard() {
   const root = new THREE.Group();
   const body = new THREE.Group(); root.add(body);
   const HIP = 0.98;
   const legs = {}, arms = {};
   for (const s of [1, -1]) {
-    const hip = limb(0.1, 0.1, 0.48, M.suit, body, s * 0.12, HIP, 0);
-    const knee = limb(0.1, 0.14, 0.44, M.suit, hip, 0, -0.48, 0);
+    const hip = limb(0.1, 0.1, 0.48, M.pants, body, s * 0.12, HIP, 0);
+    const knee = limb(0.1, 0.12, 0.44, M.pants, hip, 0, -0.48, 0);
     const shoe = mesh(new THREE.SphereGeometry(1, 20, 14), M.black, 0, -0.47, 0.06, knee);
     shoe.scale.set(0.11, 0.065, 0.19);
     legs[s] = { hip, knee };
@@ -584,16 +601,49 @@ function buildGuard() {
   mesh(new THREE.CylinderGeometry(0.235, 0.235, 0.06, 24), M.black, 0, 0.03, 0, upper).scale.z = 0.66;
   const torso = mesh(new THREE.CylinderGeometry(0.27, 0.23, 0.72, 28), M.suit, 0, 0.36, 0, upper);
   torso.scale.z = 0.66;
-  for (const s of [1, -1]) { // lapels
-    const l = mesh(new THREE.BoxGeometry(0.035, 0.34, 0.02), M.suitShade, s * 0.06, 0.55, 0.165, upper);
-    l.rotation.z = s * 0.35;
+  const secTex = (w, h, size) => canvasTex(w, h, (g, W, H) => {
+    g.fillStyle = '#0d1626'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#d8aa3a'; g.lineWidth = Math.max(3, H * 0.06); g.strokeRect(2, 2, W - 4, H - 4);
+    g.fillStyle = '#ffffff'; g.font = `bold ${size}px "Noto Sans", sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('SECURITY', W / 2, H / 2 + 2);
+  });
+  const chestMat = new THREE.MeshStandardMaterial({ map: secTex(256, 64, 40), roughness: 0.6 });
+  const backMat = new THREE.MeshStandardMaterial({ map: secTex(512, 128, 88), roughness: 0.6 });
+  // shirt details: placket, button-flap pockets, collar, tie
+  mesh(new THREE.BoxGeometry(0.02, 0.6, 0.012), M.suitShade, 0, 0.36, 0.172, upper);
+  for (const s of [1, -1]) {
+    mesh(new THREE.BoxGeometry(0.12, 0.11, 0.012), M.suitShade, s * 0.12, 0.44, 0.17, upper);
+    mesh(new THREE.BoxGeometry(0.125, 0.035, 0.02), M.suitShade, s * 0.12, 0.5, 0.172, upper);
+    const col = mesh(new THREE.BoxGeometry(0.1, 0.05, 0.03), M.suitShade, s * 0.055, 0.73, 0.075, upper);
+    col.rotation.set(0.25, 0, s * -0.5);
+    // epaulettes
+    const ep = mesh(new THREE.BoxGeometry(0.085, 0.022, 0.2), M.suitShade, s * 0.29, 0.71, 0, upper);
+    ep.rotation.z = s * -0.22;
+    mesh(new THREE.BoxGeometry(0.06, 0.012, 0.025), M.gold, s * 0.295, 0.725, 0.07, upper).rotation.z = s * -0.22;
   }
-  mesh(new THREE.BoxGeometry(0.07, 0.08, 0.02), M.gold, -0.13, 0.52, 0.165, upper); // badge
+  const tie = mesh(new THREE.BoxGeometry(0.045, 0.22, 0.012), M.black, 0, 0.6, 0.175, upper);
+  tie.rotation.z = 0.02;
+  mesh(new THREE.BoxGeometry(0.07, 0.08, 0.02), M.gold, 0.12, 0.555, 0.178, upper);            // badge (left chest)
+  const chest = mesh(new THREE.PlaneGeometry(0.15, 0.04), chestMat, -0.12, 0.555, 0.18, upper); // SECURITY name tab
+  void chest;
+  const back = mesh(new THREE.PlaneGeometry(0.3, 0.075), backMat, 0, 0.5, -0.172, upper);
+  back.rotation.y = Math.PI;
+  // belt with buckle and radio clipped to the shoulder strap
+  mesh(new THREE.BoxGeometry(0.07, 0.05, 0.02), M.gold, 0, 0.04, 0.16, upper);
+  const radio = mesh(new THREE.BoxGeometry(0.06, 0.1, 0.035), M.black, 0.2, 0.62, 0.15, upper);
+  radio.rotation.z = -0.15;
+  mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.09, 8), M.black, 0.215, 0.71, 0.15, upper);
   const neck = mesh(new THREE.CylinderGeometry(0.065, 0.07, 0.14, 16), M.skin, 0, 0.78, 0, upper);
   const headPivot = new THREE.Group(); headPivot.position.y = 0.82; upper.add(headPivot);
   const head = mesh(new THREE.SphereGeometry(0.165, 28, 22), M.skin, 0, 0.16, 0, headPivot); head.scale.set(1, 1.18, 1);
   const hairBack = mesh(new THREE.SphereGeometry(0.175, 28, 22), M.hair, 0, 0.21, -0.025, headPivot); hairBack.scale.set(1.02, 0.95, 1.0);
-  const pomp = mesh(new THREE.SphereGeometry(0.12, 24, 18), M.hair, 0, 0.33, 0.07, headPivot); pomp.scale.set(1.15, 0.7, 1.05);
+  // peaked security cap
+  const capG = new THREE.Group(); capG.position.set(0, 0.3, 0.005); capG.rotation.x = -0.08; headPivot.add(capG);
+  mesh(new THREE.CylinderGeometry(0.2, 0.172, 0.11, 28), M.suit, 0, 0.055, 0, capG);
+  mesh(new THREE.CylinderGeometry(0.176, 0.176, 0.035, 28), M.black, 0, 0.012, 0, capG);
+  const visor = mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.015, 24, 1, false, -Math.PI / 2, Math.PI), M.black, 0, 0.0, 0.07, capG);
+  visor.scale.set(1, 1, 0.7); visor.rotation.x = 0.2;
+  mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), M.gold, 0, 0.06, 0.188, capG).rotation.x = -0.15;
   for (const s of [1, -1]) {
     mesh(new THREE.BoxGeometry(0.03, 0.09, 0.05), M.hair, s * 0.158, 0.13, 0.02, headPivot);
     mesh(new THREE.SphereGeometry(0.018, 10, 8), M.black, s * 0.06, 0.18, 0.152, headPivot);
@@ -602,6 +652,8 @@ function buildGuard() {
   for (const s of [1, -1]) {
     const shoulder = limb(0.078, 0.07, 0.36, M.suit, upper, s * 0.315, 0.66, 0);
     mesh(new THREE.SphereGeometry(0.082, 16, 12), M.suit, 0, 0, 0, shoulder);
+    const patch = mesh(new THREE.CircleGeometry(0.045, 20), M.gold, s * 0.079, -0.12, 0, shoulder);
+    patch.rotation.y = s * Math.PI / 2;
     const elbow = limb(0.066, 0.06, 0.3, M.suit, shoulder, 0, -0.36, 0);
     mesh(new THREE.SphereGeometry(0.062, 16, 12), M.skin, 0, -0.33, 0, elbow);
     arms[s] = { shoulder, elbow };
@@ -885,9 +937,11 @@ function update(t) {
 function renderAt(t) {
   update(t);
   if (location.search.includes('closeup')) { // debug-only face close-up
-    const hp = new THREE.Vector3(); user.root.getWorldPosition(hp); hp.y += 1.95;
-    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(user.root.getWorldQuaternion(new THREE.Quaternion()));
-    camera.position.copy(hp).addScaledVector(fwd, 2.2).add(new THREE.Vector3(0.4, 0.2, 0));
+    const g = location.search.includes('closeupguard');
+    const who = g ? guard.root : user.root;
+    const hp = new THREE.Vector3(); who.getWorldPosition(hp); hp.y += g ? 1.45 : 1.95;
+    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(who.getWorldQuaternion(new THREE.Quaternion()));
+    camera.position.copy(hp).addScaledVector(fwd, g ? 3.2 : 2.2).add(new THREE.Vector3(g ? 0 : 0.4, 0.4, g ? 1.2 : 0));
     camera.lookAt(hp);
   }
   renderer.render(scene, camera);
