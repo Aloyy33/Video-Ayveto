@@ -2,6 +2,7 @@
 //   node render.mjs                         -> ayveto_evakuasi_kebakaran.mp4 (1920x1080, 30 fps)
 //   node render.mjs --stills 0,5,14,20      -> PNG stills in ./stills (for quick review)
 //   node render.mjs --w 1280 --h 720 --fps 24 --out preview.mp4
+//   node render.mjs --scene scene_gempa     -> earthquake version (video only; add sound with audio_gempa.mjs)
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,10 +15,12 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) =>
   return acc;
 }, []));
 const W = +(args.w || 1920), H = +(args.h || 1080), FPS = +(args.fps || 30);
-const OUT = args.out || 'ayveto_evakuasi_kebakaran.mp4';
+const SCENE = args.scene || 'scene';
+const OUT = args.out || (SCENE === 'scene_gempa' ? 'ayveto_evakuasi_gempa_video.mp4' : 'ayveto_evakuasi_kebakaran.mp4');
 const root = path.dirname(new URL(import.meta.url).pathname);
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript' };
+if (args.scene && !/^[a-z_]+$/.test(args.scene)) throw new Error('bad --scene');
 const server = http.createServer((req, res) => {
   const file = path.join(root, decodeURIComponent(req.url.split('?')[0]));
   if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -30,7 +33,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 page.on('console', m => { if (m.type() === 'error') console.error('[page]', m.text()); });
 page.on('pageerror', e => console.error('[page error]', e.message));
-await page.goto(`http://localhost:${port}/index.html?render&w=${W}&h=${H}${args.closeup?'&closeup'+(args.closeup===true?'':args.closeup):''}${args.cam?'&cam='+args.cam:''}`);
+await page.goto(`http://localhost:${port}/index.html?render&scene=${SCENE}&w=${W}&h=${H}${args.closeup?'&closeup'+(args.closeup===true?'':args.closeup):''}${args.cam?'&cam='+args.cam:''}`);
 await page.waitForFunction(() => window.sceneReady === true, null, { timeout: 60000 });
 await page.evaluate(() => document.fonts.ready);
 

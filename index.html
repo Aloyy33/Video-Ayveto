@@ -12,6 +12,11 @@
   </script>
 </head>
 <body>
-  <script type="module" src="./scene.js"></script>
+  <script type="module">
+    // ?scene=scene_gempa loads the earthquake version; default is the fire evacuation (scene.js)
+    const name = new URLSearchParams(location.search).get('scene') || 'scene';
+    if (!/^[a-z_]+$/.test(name)) throw new Error('bad scene name');
+    import(`./${name}.js`);
+  </script>
 </body>
 </html>
