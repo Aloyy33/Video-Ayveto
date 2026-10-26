@@ -6,7 +6,7 @@
 // played live in a browser or rendered frame-by-frame to video (see render.mjs).
 import * as THREE from 'three';
 import { runCrowd, sampler, DESKS, DOORS, PLANTS, GUARD_XZ } from './crowd_gempa.mjs';
-import { QUAKE, intensity, ground, camShake, sway, swayAcc, MONITOR_FALLS, PLANT_FALLS, PAINTING_FALLS, GLASS, WALL_CRACKS_T, FACADE_CRACKS_T } from './quake.mjs';
+import { QUAKE, GATE, intensity, ground, camShake, sway, swayAcc, MONITOR_FALLS, PLANT_FALLS, PAINTING_FALLS, GLASS, WALL_CRACKS_T, FACADE_CRACKS_T } from './quake.mjs';
 const TAU = Math.PI * 2, TAU5 = TAU / 5;
 const DOOR_XS = DOORS.map(d => d.x);
 const DUST_C = new THREE.Color('#cbc3b4');
@@ -185,11 +185,11 @@ const logoTex = canvasTex(512, 128, (g, w, h) => {
 const POD_H = 1.05;
 const POD_X = 0.85;
 const gate = { pods: [], flaps: [], xMarks: [], checks: [], leds: [], glows: [] };
-const ledMat = new THREE.MeshStandardMaterial({ color: '#2a3138', emissive: '#000000', emissiveIntensity: 0 }); // off
+const ledMat = new THREE.MeshStandardMaterial({ color: '#203040', emissive: '#6fa9d6', emissiveIntensity: 0.45 }); // all lanes, driven by the gate state
 const checkMat = new THREE.MeshStandardMaterial({ color: '#1fbf4a', emissive: '#27e05a', emissiveIntensity: 1.2 });
 const glowDiscMat = new THREE.MeshBasicMaterial({ color: '#35ff6e', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
 
-const indicatorOffMat = mat('#4a4f56', { roughness: 0.5 }); // unlit indicator (gate system is off)
+const indicatorOffMat = new THREE.MeshStandardMaterial({ color: '#e0283a', roughness: 0.4, emissive: '#ff2030', emissiveIntensity: 0.25 }); // lane status (X = closed)
 function makeXMark(parent, x, z, active) {
   const grp = new THREE.Group();
   grp.position.set(x, POD_H + 0.004, z);
@@ -198,7 +198,7 @@ function makeXMark(parent, x, z, active) {
     const r = mesh(new THREE.BoxGeometry(0.245, 0.012, 0.05), indicatorOffMat, 0, 0.002, 0, grp); r.rotation.y = a;
   }
   parent.add(grp);
-  return; // system off: no status lights
+  return;
   gate.xMarks.push(grp);
   // green check (shown after successful verification)
   const chk = new THREE.Group();
@@ -257,8 +257,7 @@ for (const lc of LANES) for (const side of [-1, 1]) {
   panel.userData.noShadow = true;
   mesh(new THREE.BoxGeometry(0.03, 0.66, 0.04), M.steel, dir * 0.015, 0.32, 0, pivot);
   scene.add(pivot);
-  pivot.rotation.y = side < 0 ? -Math.PI / 2 : Math.PI / 2; // emergency release: every lane stays wide open
-  gate.flaps.push(pivot);
+  gate.flaps.push({ pivot, open: side < 0 ? -Math.PI / 2 : Math.PI / 2 }); // closed until the emergency release
 }
 // glass railings from the outer pods to the side walls, closing off the security line
 {
@@ -273,26 +272,96 @@ for (const lc of LANES) for (const side of [-1, 1]) {
 
 // RFID reader built into the gate: no separate pole. Each pod of the visitor's lane carries a
 // small tilted status display at the lane entrance; the antenna sits inside the gate itself.
-const screenTex = canvasTex(256, 256, () => {});
-const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
-for (const sd of [-1, 1]) {
+const SW = 640, SH = 420;
+const screenTex = canvasTex(SW, SH, () => {});
+const screenMat = new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false });
+for (let k = -4; k <= 3; k++) {
   const d = new THREE.Group();
-  d.position.set(sd * POD_X, POD_H, -0.42);
-  d.rotation.x = 0.4; // face tilts up toward the approaching visitor (-z)
-  addEdges(mesh(new THREE.BoxGeometry(0.3, 0.3, 0.05), M.readerGray, 0, 0.16, 0, d));
-  mesh(new THREE.BoxGeometry(0.1, 0.04, 0.12), M.readerGray, 0, 0.02, 0.02, d);
-  const p = mesh(new THREE.PlaneGeometry(0.25, 0.25), screenMat, 0, 0.16, -0.0265, d);
+  d.position.set(POD_X + k * 2 * POD_X, POD_H, -0.42);
+  d.rotation.x = 0.42; // face tilts up toward people in the lobby (-z)
+  addEdges(mesh(new THREE.BoxGeometry(0.46, 0.32, 0.05), M.readerGray, 0, 0.18, 0, d));
+  mesh(new THREE.BoxGeometry(0.12, 0.05, 0.12), M.readerGray, 0, 0.025, 0.02, d);
+  const p = mesh(new THREE.PlaneGeometry(0.42, 0.276), screenMat, 0, 0.18, -0.0265, d);
   p.rotation.y = Math.PI;
   scene.add(d);
 }
+const gateAlarmLight = new THREE.PointLight('#ff3020', 0, 5, 1.6); gateAlarmLight.position.set(0, 1.5, -0.9); scene.add(gateAlarmLight);
 
-// gate system is off: the status displays are dark
-{
-  const { ctx: g } = screenTex.userData;
-  g.fillStyle = '#07090b'; g.fillRect(0, 0, 256, 256);
-  const gr = g.createLinearGradient(0, 0, 256, 256); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+// status display content for each phase of the gate system
+let lastScreenKey = '';
+function drawScreen(t) {
+  const st = t < GATE.detect ? 'idle' : t < GATE.release ? 'detect' : t < GATE.shutdown ? 'release' : t < GATE.dark ? 'off' : 'dark';
+  const fl = ((t - GATE.detect) * 3.2) % 1 < 0.55;
+  const flick = st === 'off' ? Math.floor(t * 20) : 0;
+  const key = st === 'idle' ? 'idle' + Math.floor(t * 4) : st === 'dark' ? 'dark' : st + Math.floor(t * 15) + fl + flick;
+  if (key === lastScreenKey) return;
+  lastScreenKey = key;
+  const g = screenTex.userData.ctx, W = SW, H = SH, c = W / 2;
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineCap = 'round'; g.lineJoin = 'round';
+  const font = (px, w = 'bold') => { g.font = `${w} ${px}px "Noto Sans", sans-serif`; };
+  const header = (bg) => { g.fillStyle = bg; g.fillRect(0, 0, W, 62); g.fillStyle = '#fff'; font(34); g.fillText('AYVETO', 110, 33); font(22, '600'); g.textAlign = 'right'; g.fillText('GATE 04', W - 24, 33); g.textAlign = 'center'; };
+  const seismo = (y0, amp, col) => { // live seismograph trace
+    g.strokeStyle = col; g.lineWidth = 4; g.beginPath();
+    for (let x = 20; x <= W - 20; x += 3) {
+      const tt = t - (W - 20 - x) / 260, I = intensity(tt);
+      const v = I * (Math.sin(tt * 47) * 0.6 + Math.sin(tt * 83 + 1) * 0.4) + (1 - I) * 0.04 * Math.sin(tt * 30);
+      x === 20 ? g.moveTo(x, y0 - v * amp) : g.lineTo(x, y0 - v * amp);
+    }
+    g.stroke();
+  };
+  if (st === 'idle') {
+    g.fillStyle = '#0a2a44'; g.fillRect(0, 0, W, H); header('#0f3b5f');
+    // RFID icon + text
+    g.strokeStyle = 'rgba(120,190,255,0.9)'; g.lineWidth = 11;
+    for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(150, 205, 30 + i * 26, -Math.PI / 3.2, Math.PI / 3.2); g.stroke(); }
+    g.fillStyle = '#7fc0ff'; g.fillRect(96, 168, 26, 74);
+    g.fillStyle = '#ffffff'; font(40); g.textAlign = 'left'; g.fillText('SIAP', 300, 175); font(26, '600'); g.fillText('Kartu terdeteksi', 300, 222); g.fillText('otomatis', 300, 254); g.textAlign = 'center';
+    g.fillStyle = '#16a34a'; g.beginPath(); g.arc(W - 48, H - 40, 10, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.7)'; font(20, '600'); g.textAlign = 'right'; g.fillText('SISTEM NORMAL', W - 68, H - 39); g.textAlign = 'center';
+    seismo(H - 40, 12, 'rgba(120,190,255,0.55)');
+  } else if (st === 'detect') {
+    g.fillStyle = fl ? '#c4101c' : '#7a0710'; g.fillRect(0, 0, W, H); header('#4d040a');
+    // warning triangle
+    g.fillStyle = '#ffd400'; g.beginPath(); g.moveTo(92, 108); g.lineTo(152, 214); g.lineTo(32, 214); g.closePath(); g.fill();
+    g.fillStyle = '#111'; font(76); g.fillText('!', 92, 178);
+    g.fillStyle = '#fff'; font(54); g.textAlign = 'left'; g.fillText('GEMPA', 180, 132); g.fillText('TERDETEKSI', 180, 188); g.textAlign = 'center';
+    font(24, '600'); g.fillStyle = '#ffe1e1'; g.fillText('EARTHQUAKE DETECTED', c, 252);
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(16, 282, W - 32, 120);
+    seismo(342, 50, '#ffe14d');
+    font(20, '600'); g.fillStyle = '#fff'; g.textAlign = 'left'; g.fillText('GETARAN: KUAT', 30, 300); g.textAlign = 'center';
+  } else if (st === 'release' || (st === 'off' && flick % 3 !== 0)) {
+    g.fillStyle = '#0c7a35'; g.fillRect(0, 0, W, H); header('#06451d');
+    g.fillStyle = '#fff'; font(48); g.fillText('GATE DIBUKA', c, 122);
+    font(24, '600'); g.fillText('EMERGENCY OPEN · SEMUA JALUR', c, 168);
+    // arrows pointing out (down = toward the lobby)
+    g.strokeStyle = '#fff'; g.lineWidth = 16;
+    for (const ax of [c - 150, c, c + 150]) { const ph = ((t * 2) % 1) * 22; g.beginPath(); g.moveTo(ax, 205 + ph); g.lineTo(ax, 290 + ph); g.stroke(); g.beginPath(); g.moveTo(ax - 32, 258 + ph); g.lineTo(ax, 292 + ph); g.lineTo(ax + 32, 258 + ph); g.stroke(); }
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, H - 62, W, 62);
+    g.fillStyle = '#fff'; font(26); g.fillText(st === 'off' ? 'SISTEM DIMATIKAN…' : 'SEGERA EVAKUASI', c, H - 31);
+  } else if (st === 'off') {
+    g.fillStyle = '#05070a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(255,255,255,0.8)'; g.fillRect(c - 160, H / 2 - 2, 320, 4); // CRT-style collapse line
+  } else {
+    g.fillStyle = '#05070a'; g.fillRect(0, 0, W, H);
+    const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, 'rgba(255,255,255,0.09)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }
   screenTex.needsUpdate = true;
+}
+function updateGate(t) {
+  drawScreen(t);
+  const detect = t >= GATE.detect && t < GATE.release, release = t >= GATE.release && t < GATE.shutdown;
+  const fl = ((t - GATE.detect) * 3.2) % 1 < 0.55;
+  const off = t >= GATE.shutdown + (Math.floor(t * 20) % 3 === 0 ? 0 : 0.35);
+  // flaps: emergency release opens every lane; they stay open when the power is cut
+  const u = smoother(GATE.release + 0.05, GATE.openEnd, t);
+  for (const f of gate.flaps) f.pivot.rotation.y = f.open * u + (u < 1 ? 0.025 * intensity(t) * Math.sin(t * 31 + f.open) : 0);
+  if (off) { ledMat.emissiveIntensity = 0; indicatorOffMat.color.set('#4a4f56'); indicatorOffMat.emissiveIntensity = 0; }
+  else if (detect) { ledMat.emissive.set('#ff2a2a'); ledMat.emissiveIntensity = fl ? 2.2 : 0.3; indicatorOffMat.color.set('#e0283a'); indicatorOffMat.emissiveIntensity = fl ? 1.6 : 0.2; }
+  else if (release) { ledMat.emissive.set('#27e05a'); ledMat.emissiveIntensity = 1.8; indicatorOffMat.color.set('#4a4f56'); indicatorOffMat.emissiveIntensity = 0; }
+  else { ledMat.emissive.set('#6fa9d6'); ledMat.emissiveIntensity = 0.45; indicatorOffMat.color.set('#e0283a'); indicatorOffMat.emissiveIntensity = 0.25; }
+  gateAlarmLight.color.set(release ? '#30ff6a' : '#ff3020');
+  gateAlarmLight.intensity = off ? 0 : detect ? (fl ? 3.5 : 0.4) : release ? 2.0 : 0;
 }
 
 // reception desk in the lobby, before the gate (visitor side faces the entrance and the walkway)
@@ -1194,11 +1263,12 @@ function guardAt(t) {
 // azimuth 0 = camera on the +z side of the target (behind people running out toward -z),
 // azimuth PI = in front of them. follow blends the target onto the visitor in yellow.
 const CAM_KEYS = [
-  [0.0, Math.PI - 0.3, 1.25, 5.8, 0.4, 1.2, 17.6, 0, 0],      // office, people chatting
-  [2.4, Math.PI - 0.38, 1.75, 6.4, 0.4, 1.0, 17.2, 0, -0.5],  // the quake hits: ceiling, lamps, people taking cover
-  [4.6, Math.PI - 0.4, 1.8, 6.4, 0.3, 1.0, 16, 0.5, -1.0],    // drop, cover, hold on
-  [6.6, Math.PI - 0.36, 1.85, 5.9, 0, 1.1, 12, 1, -1.2],      // running toward the camera through the office
-  [9.4, Math.PI - 0.38, 1.9, 6.0, 0, 1.1, 4, 1, -1.2],
+  [0.0, Math.PI + 0.2, 0.2, 1.05, 0.85, 1.24, -0.52, 0, 0],   // close-up: the gate's status display (system normal)
+  [1.4, Math.PI + 0.22, 0.2, 0.98, 0.85, 1.24, -0.52, 0, 0],
+  [2.6, Math.PI + 0.24, 0.22, 1.02, 0.85, 1.24, -0.52, 0, 0],  // "GEMPA TERDETEKSI"
+  [3.9, Math.PI + 0.3, 0.55, 3.0, 0.3, 1.05, -0.2, 0, 0],      // pull back: emergency release, every flap opens
+  [5.8, Math.PI - 0.12, 1.6, 6.4, 0, 1.0, 1.5, 0, 0],          // system dead; office behind: people taking cover, then running
+  [8.4, Math.PI - 0.3, 1.9, 6.2, 0, 1.1, 4, 0.75, -1.0],      // the crowd runs toward the open gates
   [11.0, Math.PI - 0.62, 2.6, 7.8, 0, 1.0, 0.4, 0.35, -0.4],  // all 7 gates open, system off, people streaming through
   [12.8, 1.35, 1.8, 5.4, 0, 1.2, -5, 0.9, 0.8],               // swing round behind the visitor in the lobby
   [14.8, 0.18, 1.7, 5.0, 0, 1.2, -11, 1, 2.0],                // out through the doors
@@ -1307,6 +1377,7 @@ function update(t) {
   }
 
   updateQuake(t);
+  updateGate(t);
 
   // ---------------- camera
   const ch = i => camChannel(t, i);

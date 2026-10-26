@@ -53,6 +53,18 @@ for (const e of soundEvents()) {
     addBurst(e.t, 0.35, 0.6 * e.g, t => { const n = rnd(); return (n - hp(n)) * Math.exp(-t * 25) * (t < 0.02 ? 1.6 : 1); }, pan);
   } else if (e.kind === 'glasscrack') {
     addBurst(e.t, 0.5, 0.45 * e.g, t => { const n = rnd(); return n * Math.exp(-t * 20) * 0.6 + Math.sin(2 * Math.PI * 4200 * t) * Math.exp(-t * 14) * 0.3; }, pan);
+  } else if (e.kind === 'beep') {
+    addBurst(e.t, 0.2, 0.55, t => (Math.sin(2 * Math.PI * e.f * t) * 0.8 + Math.sin(2 * Math.PI * e.f * 2 * t) * 0.15) * Math.min(1, t / 0.005, (0.2 - t) / 0.02), 0.25);
+  } else if (e.kind === 'chime') {
+    [784, 988, 1319].forEach((f, k) => addBurst(e.t + k * 0.12, 0.6, 0.45, t => Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 6) * Math.min(1, t / 0.004), 0.25));
+  } else if (e.kind === 'motor') {
+    const lp = onePole(700);
+    addBurst(e.t, e.dur + 0.1, 0.5, t => (lp(rnd()) * 1.5 + Math.sin(2 * Math.PI * (150 + 60 * t) * t) * 0.25) * Math.min(1, t / 0.08, (e.dur + 0.1 - t) / 0.1), 0.2);
+    addBurst(e.t + e.dur, 0.12, 0.6, t => rnd() * Math.exp(-t * 60), 0.2); // flaps reach their stops
+  } else if (e.kind === 'powerdown') {
+    let ph = 0;
+    addBurst(e.t, 0.7, 0.5, t => { ph += 2 * Math.PI * (700 * Math.exp(-t * 4.5) + 40) / SR; return Math.sin(ph) * (1 - t / 0.7); }, 0.25);
+    addBurst(e.t + 0.62, 0.06, 0.7, t => rnd() * Math.exp(-t * 90), 0.25); // relay click
   } else if (e.kind === 'glass') {
     // shatter: bright noise burst + many short random tinkles over ~1.5 s
     addBurst(e.t, 0.5, 0.9 * e.g, t => rnd() * Math.exp(-t * 9), pan);

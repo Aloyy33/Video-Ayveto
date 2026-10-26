@@ -2,6 +2,9 @@
 // Everything is a pure function of time, so video and audio stay in sync.
 
 export const QUAKE = { start: 1.0, powerOut: 6.2, after: 15.6 };
+// gate system: running normally (lanes closed) -> detects the quake -> emergency release (all
+// flaps open) -> shuts itself down (displays and lights go dark; flaps stay open)
+export const GATE = { detect: 1.45, release: 2.75, openEnd: 3.55, shutdown: 4.35, dark: 5.0 };
 
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const sm = (a, b, x) => { const u = clamp((x - a) / (b - a)); return u * u * (3 - 2 * u); };
@@ -75,6 +78,11 @@ export function soundEvents() {
   for (const t of MONITOR_FALLS) ev.push({ t: t + 0.35, kind: 'crash', g: 0.45 });
   ev.push({ t: GLASS.t, kind: 'glass', g: 1.0 });
   ev.push({ t: GLASS.t + 0.9, kind: 'glass', g: 0.6 });
+  // gate system sounds: alarm beeps while warning, chime + flap motors on release, power-down
+  for (let t = GATE.detect; t < GATE.shutdown - 0.05; t += 0.32) ev.push({ t, kind: 'beep', g: 1, f: Math.round((t - GATE.detect) / 0.32) % 2 ? 880 : 1175 });
+  ev.push({ t: GATE.release, kind: 'chime', g: 1 });
+  ev.push({ t: GATE.release + 0.05, kind: 'motor', g: 1, dur: GATE.openEnd - GATE.release });
+  ev.push({ t: GATE.shutdown, kind: 'powerdown', g: 1 });
   for (const t of WALL_CRACKS_T) ev.push({ t, kind: 'crack', g: 0.7 });
   for (const t of FACADE_CRACKS_T) ev.push({ t, kind: 'glasscrack', g: 0.6 });
   return ev;

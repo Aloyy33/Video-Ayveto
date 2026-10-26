@@ -4,7 +4,7 @@ Two 24 s, 1920×1080 (16:9), 30 fps H.264 videos of the AYVETO building, rendere
 
 ## 1. Earthquake – [`ayveto_evakuasi_gempa.mp4`](ayveto_evakuasi_gempa.mp4) (with sound)
 
-An earthquake hits while people are chatting in the office. The building shakes (camera shake from the ground motion), pendant lamps and hanging EXIT signs swing, lights flicker and then the power fails. Ceiling tiles fall with dust, plants and monitors topple, paintings drop off the wall, chairs roll, and the walls and glass facade crack.
+The video opens on a close-up of the gate's status display (SIAP, system normal). When the earthquake hits, the gate system detects it: every display flashes **GEMPA TERDETEKSI** with a live seismograph, the lane lights flash red and an alarm beeps. It then performs an emergency release (**GATE DIBUKA**, all 7 lanes' flaps swing open, green lights) and shuts itself down; the displays and lights go dark and the flaps stay open. The camera pulls back to the office behind the gates. The building shakes (camera shake from the ground motion), pendant lamps and hanging EXIT signs swing, lights flicker and then the power fails. Ceiling tiles fall with dust, plants and monitors topple, paintings drop off the wall, chairs roll, and the walls and glass facade crack.
 
 Most people drop and cover their heads; the rest brace and look up. When the main shock eases, everyone, including the visitor in the yellow shirt, runs out through all the open gate lanes, across the lobby and through three entrance doors to the open area outside. The guard takes cover too, then waves people out and leaves last. An aftershock shatters a facade panel while people crouch outside.
 
