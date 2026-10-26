@@ -55,6 +55,9 @@ for (const e of soundEvents()) {
   } else if (e.kind === 'whoosh') {
     const lp = onePole(500);
     addBurst(e.t, 1.4, 1.1 * e.g, t => lp(rnd()) * 4 * Math.min(1, t / 0.15) * Math.exp(-t * 2.2), pan);
+  } else if (e.kind === 'click') { // emergency button: heavy mechanical clack
+    const lp = onePole(1200);
+    addBurst(e.t, 0.12, 1.0, t => (lp(rnd()) * 2.5 + Math.sin(2 * Math.PI * 320 * t) * 0.6) * Math.exp(-t * 55), -0.3);
   } else if (e.kind === 'beep') {
     addBurst(e.t, 0.2, 0.55, t => (Math.sin(2 * Math.PI * e.f * t) * 0.8 + Math.sin(2 * Math.PI * e.f * 2 * t) * 0.15) * Math.min(1, t / 0.005, (0.2 - t) / 0.02), 0.25);
   } else if (e.kind === 'chime') {

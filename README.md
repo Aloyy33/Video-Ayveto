@@ -14,7 +14,7 @@ The sound track is synthesised and in sync with the shaking: rumble, rattling, c
 
 ## 2. Fire – [`ayveto_evakuasi_kebakaran.mp4`](ayveto_evakuasi_kebakaran.mp4) (with sound)
 
-The video opens on a close-up of the gate's status display (SIAP, system normal). A fire breaks out in the office. The gate system detects it: every display flashes **KEBAKARAN TERDETEKSI** (location, smoke sensor, alarm), the lane lights flash red and the alarm beeps. It then performs an emergency release (**GATE DIBUKA**, all 7 lanes' flaps swing open) and shuts itself down; displays and lights go dark and the flaps stay open.
+The video opens on a close-up of the gate's status display (SIAP, system normal). A fire breaks out in the office. The gate system detects it: every display flashes **KEBAKARAN TERDETEKSI** and **GATE TERKUNCI · MENUNGGU TOMBOL EMERGENCY RESEPSIONIS**, the alarm sounds, and the lanes stay locked. The security guard sprints to the reception desk and slams the red **EMERGENCY – BUKA SEMUA GATE** button. The system then releases every lane (**GATE DIBUKA**, all 7 lanes' flaps swing open) and shuts itself down; displays and lights go dark and the flaps stay open. The guard runs back to the doors and waves everyone out.
 
 The fire is big and spreads fast: from the back corner to more desks, the lounge and finally the lobby, with thick black smoke banking down under the ceiling, embers, alarm strobes and an EVAKUASI screen. About 50 people run out in panic through every lane and three entrance doors, some covering their mouths. Outside, smoke pours over the roof and the heat bursts a facade panel.
 

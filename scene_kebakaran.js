@@ -1,17 +1,19 @@
 // AYVETO fire evacuation (big fire) — deterministic Three.js animation.
 // Opens on the gate's status display. A fire breaks out in the office and spreads fast; the gate
-// system detects it, shows KEBAKARAN TERDETEKSI, releases every lane and shuts itself down with
-// all 7 lanes wide open. In thick smoke everyone (including the visitor in the yellow shirt) runs
+// system detects it and shows KEBAKARAN TERDETEKSI, but the lanes stay locked. The security guard
+// runs to the reception desk and presses the emergency button: the system releases every lane and
+// shuts itself down with all 7 lanes wide open. In thick smoke everyone (including the visitor in the yellow shirt) runs
 // out through the gates, the lobby and the three entrance doors to the assembly point outside.
 // Every frame is a pure function of time `t` (seconds), so the same scene can be
 // played live in a browser or rendered frame-by-frame to video (see render.mjs).
 import * as THREE from 'three';
-import { runCrowd, sampler, DESKS, DOORS, PLANTS, GUARD_XZ, FIRES } from './crowd_fire.mjs';
+import { runCrowd, sampler, DESKS, DOORS, PLANTS, GUARD_XZ, FIRES, guardPos, BUTTON_LOCAL } from './crowd_fire.mjs';
 import { QUAKE, GATE, intensity, ground, camShake, sway, swayAcc, MONITOR_FALLS, PLANT_FALLS, PAINTING_FALLS, GLASS, WALL_CRACKS_T, FACADE_CRACKS_T, fireSize } from './fire.mjs';
 const TAU = Math.PI * 2, TAU5 = TAU / 5;
 const DOOR_XS = DOORS.map(d => d.x);
 const DUST_C = new THREE.Color('#cbc3b4');
 const plantGroups = [], paintings = [], recMonitors = [];
+const BTN = {};
 
 const params = new URLSearchParams(location.search);
 const WIDTH = parseInt(params.get('w') || '1920', 10);
@@ -325,13 +327,21 @@ function drawScreen(t) {
     font(24, '600'); g.fillStyle = '#ffe1e1'; g.fillText('FIRE DETECTED', c, 252);
     g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(16, 282, W - 32, 120);
     g.fillStyle = '#fff'; font(22, '600'); g.textAlign = 'left';
-    g.fillText('LOKASI: AREA KANTOR', 34, 312); g.fillText('SENSOR ASAP: AKTIF', 34, 346); g.fillText('ALARM: MENYALA', 34, 380);
+    g.fillText('LOKASI: AREA KANTOR', 34, 304); g.fillText('ALARM: MENYALA', 34, 332);
+    const pressed = t >= GATE.press;
+    g.fillStyle = pressed ? '#7dff9e' : '#ffd400'; font(23);
+    g.fillText(pressed ? 'TOMBOL DARURAT DITEKAN' : 'GATE TERKUNCI · MENUNGGU', 34, 362);
+    if (!pressed) { font(18, '600'); g.fillStyle = '#ffe9a8'; g.fillText('TOMBOL EMERGENCY RESEPSIONIS', 34, 389); }
     g.textAlign = 'center';
-    for (let k = 0; k < 3; k++) { g.fillStyle = fl ? '#ffd400' : '#6b5a00'; g.beginPath(); g.arc(W - 70, 312 + k * 34, 10, 0, 7); g.fill(); }
+    for (let k = 0; k < 2; k++) { g.fillStyle = fl ? '#ffd400' : '#6b5a00'; g.beginPath(); g.arc(W - 70, 304 + k * 28, 10, 0, 7); g.fill(); }
+    if (pressed) { // progress bar: opening the lanes
+      const u = clamp((t - GATE.press) / (GATE.release - GATE.press));
+      g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(W - 210, 378, 170, 18); g.fillStyle = '#7dff9e'; g.fillRect(W - 210, 378, 170 * u, 18);
+    }
   } else if (st === 'release' || (st === 'off' && flick % 3 !== 0)) {
     g.fillStyle = '#0c7a35'; g.fillRect(0, 0, W, H); header('#06451d');
     g.fillStyle = '#fff'; font(48); g.fillText('GATE DIBUKA', c, 122);
-    font(24, '600'); g.fillText('EMERGENCY OPEN · SEMUA JALUR', c, 168);
+    font(24, '600'); g.fillText('EMERGENCY RELEASE · SEMUA JALUR', c, 168);
     g.strokeStyle = '#fff'; g.lineWidth = 16;
     for (const ax of [c - 150, c, c + 150]) { const ph = ((t * 2) % 1) * 22; g.beginPath(); g.moveTo(ax, 205 + ph); g.lineTo(ax, 290 + ph); g.stroke(); g.beginPath(); g.moveTo(ax - 32, 258 + ph); g.lineTo(ax, 292 + ph); g.lineTo(ax + 32, 258 + ph); g.stroke(); }
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, H - 62, W, 62);
@@ -506,6 +516,21 @@ const entranceDoors = [];
     mesh(new THREE.BoxGeometry(0.2, 0.012, 0.14), B.frame, 0, 0.006, 0, pv);
     recMonitors.push({ obj: pv, t: MONITOR_FALLS[i], dir: i ? 1 : -1, screen: null });
   });
+  // emergency gate-release button on the counter (visitor side): yellow housing, red mushroom button
+  {
+    const eb = new THREE.Group(); eb.position.set(BUTTON_LOCAL[0], 1.16, BUTTON_LOCAL[1]); desk.add(eb);
+    addEdges(mesh(new THREE.BoxGeometry(0.16, 0.06, 0.16), mat('#f2c81c', { roughness: 0.45 }), 0, 0.03, 0, eb));
+    for (const k of [-1, 1]) mesh(new THREE.BoxGeometry(0.16, 0.061, 0.018), M.black, 0, 0.03, k * 0.035, eb).rotation.y = 0.785;
+    mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.02, 24), M.black, 0, 0.07, 0, eb);
+    BTN.ring = new THREE.MeshStandardMaterial({ color: '#550000', emissive: '#ff2020', emissiveIntensity: 0.2 });
+    mesh(new THREE.TorusGeometry(0.047, 0.006, 8, 28), BTN.ring, 0, 0.078, 0, eb).rotation.x = Math.PI / 2;
+    BTN.cap = new THREE.Group(); BTN.cap.position.y = 0.08; eb.add(BTN.cap);
+    mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.03, 16), mat('#b0101a'), 0, 0.015, 0, BTN.cap);
+    mesh(new THREE.SphereGeometry(0.042, 24, 12, 0, TAU, 0, Math.PI / 2), mat('#e0182a', { roughness: 0.3 }), 0, 0.028, 0, BTN.cap).scale.y = 0.55;
+    const lab = canvasTex(256, 96, (g, w, h) => { g.fillStyle = '#d4141e'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.font = 'bold 40px "Noto Sans", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('EMERGENCY', w / 2, 34); g.font = 'bold 24px "Noto Sans", sans-serif'; g.fillText('BUKA SEMUA GATE', w / 2, 72); });
+    const lp = mesh(new THREE.PlaneGeometry(0.2, 0.075), new THREE.MeshBasicMaterial({ map: lab }), 0, 0.0005, -0.14, eb); lp.rotation.x = -Math.PI / 2; lp.rotation.z = Math.PI;
+    BTN.light = new THREE.PointLight('#ff2a2a', 0, 1.6, 2); BTN.light.position.set(0, 0.2, 0); eb.add(BTN.light);
+  }
   const recTex = canvasTex(512, 96, (g, w, h) => {
     g.fillStyle = '#0f3b5f'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#ffffff'; g.font = 'bold 54px "Noto Sans", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -1413,10 +1438,14 @@ function guardAt(t) {
 // azimuth PI = in front of them. follow blends the target onto the visitor in yellow.
 const CAM_KEYS = [
   [0.0, Math.PI + 0.2, 0.2, 1.05, 0.85, 1.24, -0.52, 0, 0],    // close-up: the gate's status display (system normal)
-  [1.3, Math.PI + 0.22, 0.2, 0.98, 0.85, 1.24, -0.52, 0, 0],
-  [2.5, Math.PI + 0.24, 0.22, 1.02, 0.85, 1.24, -0.52, 0, 0],  // "KEBAKARAN TERDETEKSI"
-  [3.8, Math.PI + 0.3, 0.6, 3.2, 0.3, 1.1, 0.0, 0, 0],         // pull back: emergency release, every flap opens
-  [5.6, Math.PI - 0.1, 1.9, 7.4, 0.4, 1.1, 4.0, 0.3, -1.0],    // system dead; the office on fire, people running at the gates
+  [1.0, Math.PI + 0.22, 0.2, 0.98, 0.85, 1.24, -0.52, 0, 0],
+  [1.7, Math.PI + 0.25, 0.24, 1.08, 0.85, 1.24, -0.52, 0, 0], // "KEBAKARAN TERDETEKSI" - gate still locked
+  [2.0, Math.PI + 0.26, 0.25, 1.12, 0.85, 1.24, -0.52, 0, 0],  // (hold, so the move to the reception starts here)
+  [2.55, 4.6, 1.2, 4.4, 2.6, 1.0, -7.4, 0, 0],                 // the guard sprints to the reception desk
+  [3.12, 5.2, 0.7, 1.95, 3.3, 1.15, -5.6, 0, 0],               // close on the emergency button being pressed
+  [3.6, 5.24, 0.72, 2.05, 3.3, 1.15, -5.6, 0, 0],
+  [4.45, Math.PI + 0.35, 0.9, 3.6, 0.3, 1.1, 0.0, 0, 0],       // back at the gates: every flap swings open, the crowd pushes through
+  [6.0, Math.PI - 0.1, 1.9, 7.4, 0.4, 1.1, 4.0, 0.3, -1.0],    // system dead; the office on fire, people running at the gates
   [7.4, Math.PI - 0.62, 2.6, 7.8, 0, 1.0, 0.4, 0.35, -0.4],    // all 7 lanes open, the crowd streams through
   [9.2, 1.35, 1.8, 5.4, 0, 1.2, -5, 0.9, 0.8],                 // swing round behind the visitor in the lobby
   [11.2, 0.18, 1.7, 5.0, 0, 1.2, -11, 1, 2.0],                 // out through the doors
@@ -1503,18 +1532,31 @@ function update(t) {
     posePerson(p, t, s);
   }
 
-  // guard: takes cover, stands up and waves people out through the doors, leaves last
+  // guard: runs to the reception desk, presses the emergency button, runs back to the doors and
+  // waves everyone out, leaves last
   {
-    const g = guard, gp = guardAt(t);
+    const g = guard, gp = guardPos(t);
     g.root.position.set(gp.x, 0, gp.z);
-    const base = { h: g, a: { delay: 99 }, crouch: false, coverRun: false, react: 0.22, ph: 1.3, look: 0, talk: false };
-    if (gp.s > 0) {
-      g.root.rotation.y = gp.moving ? gp.h : 0;
-      posePerson(base, t, { v: gp.moving ? 2.8 : 0, d: gp.s });
-    } else {
-      g.root.rotation.y = -0.3;
-      posePerson(base, t, { v: 0, d: 0 });
-      const wv = smooth(GATE.detect + 0.5, GATE.detect + 1.0, t), wave = Math.sin(t * 5.2);
+    // smooth turning
+    { let sx = 0, sz = 0; for (let k = 0; k <= 8; k++) { const h = guardPos(t - k * 0.04).h, w = 1 - k / 9; sx += Math.sin(h) * w; sz += Math.cos(h) * w; } g.root.rotation.y = Math.atan2(sx, sz); }
+    const base = { h: g, a: { delay: 0 }, crouch: false, coverRun: false, react: 0.22, ph: 1.3, look: 0, talk: false };
+    posePerson(base, t, { v: gp.v, d: gp.d });
+    if (gp.phase === 'press' || (gp.phase === 'run' && t < 3.9 && t > 2.7)) {
+      // reach out, slam the button with the right hand, look down at it
+      const reach = smooth(2.85, 3.08, t) * (1 - smooth(3.45, 3.72, t)), push = smooth(3.08, 3.15, t) * (1 - smooth(3.3, 3.42, t));
+      g.upper.rotation.x = lerp(g.upper.rotation.x, 0.22 + 0.06 * push, reach);
+      g.arms[-1].shoulder.rotation.set(lerp(g.arms[-1].shoulder.rotation.x, -1.0 - 0.08 * push, reach), 0, lerp(g.arms[-1].shoulder.rotation.z, 0.12, reach));
+      g.arms[-1].elbow.rotation.set(lerp(g.arms[-1].elbow.rotation.x, -0.35 + 0.15 * push, reach), 0, 0);
+      g.headPivot.rotation.set(lerp(g.headPivot.rotation.x, 0.55, reach), lerp(g.headPivot.rotation.y, 0.1, reach), 0);
+    }
+    // button: goes down when pressed, its ring and light glow red after
+    const down = smooth(3.1, 3.15, t) * (1 - smooth(3.35, 3.5, t));
+    BTN.cap.position.y = 0.08 - 0.018 * down;
+    const lit = t >= GATE.press ? 1 : 0, blink = ((t * 3) % 1) < 0.5;
+    BTN.ring.emissiveIntensity = lit ? (blink ? 3 : 1.2) : 0.25;
+    BTN.light.intensity = lit ? (blink ? 1.4 : 0.5) : 0;
+    if (gp.phase === 'post' && t > 5) {
+      const wv = smooth(5.25, 5.75, t) * (1 - smooth(18.2, 18.45, t)), wave = Math.sin(t * 5.2);
       if (wv > 0) {
         const L = (o, v) => o.set(lerp(o.x, v[0], wv), lerp(o.y, v[1], wv), lerp(o.z, v[2], wv));
         L(g.arms[-1].shoulder.rotation, [-0.35, 0, -1.25 + 0.12 * wave]); L(g.arms[-1].elbow.rotation, [-0.35, 0, 0]);
