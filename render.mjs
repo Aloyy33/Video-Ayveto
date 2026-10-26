@@ -16,7 +16,7 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) =>
 }, []));
 const W = +(args.w || 1920), H = +(args.h || 1080), FPS = +(args.fps || 30);
 const SCENE = args.scene || 'scene';
-const OUT = args.out || (SCENE === 'scene_gempa' ? 'ayveto_evakuasi_gempa_video.mp4' : 'ayveto_evakuasi_kebakaran.mp4');
+const OUT = args.out || (SCENE === 'scene' ? 'ayveto_evakuasi_kebakaran_lama.mp4' : 'ayveto_' + SCENE.replace('scene_', 'evakuasi_') + '_video.mp4');
 const root = path.dirname(new URL(import.meta.url).pathname);
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript' };

@@ -1,6 +1,6 @@
 // AYVETO fire evacuation — deterministic Three.js animation.
-// A fire breaks out in the office; the alarm sounds, the gate system is switched off with every
-// lane wide open, and everyone (including the visitor in the yellow shirt) walks out through the
+// Opens on the gate's status display. A fire breaks out in the office; the gate system detects it,
+// shows a fire warning, releases every lane and then shuts itself down with the lanes wide open, and everyone (including the visitor in the yellow shirt) walks out through the
 // gates, the lobby and the entrance to the assembly point outside.
 // Every frame is a pure function of time `t` (seconds), so the same scene can be
 // played live in a browser or rendered frame-by-frame to video (see render.mjs).
@@ -179,11 +179,13 @@ const logoTex = canvasTex(512, 128, (g, w, h) => {
 const POD_H = 1.05;
 const POD_X = 0.85;
 const gate = { pods: [], flaps: [], xMarks: [], checks: [], leds: [], glows: [] };
-const ledMat = new THREE.MeshStandardMaterial({ color: '#2a3138', emissive: '#000000', emissiveIntensity: 0 }); // off
+// gate system timeline: normal -> fire detected -> emergency release (all flaps open) -> shutdown
+const GATE = { detect: 1.3, release: 2.6, openEnd: 3.4, shutdown: 4.2, dark: 4.85 };
+const ledMat = new THREE.MeshStandardMaterial({ color: '#203040', emissive: '#6fa9d6', emissiveIntensity: 0.45 }); // all lanes, driven by the gate state
 const checkMat = new THREE.MeshStandardMaterial({ color: '#1fbf4a', emissive: '#27e05a', emissiveIntensity: 1.2 });
 const glowDiscMat = new THREE.MeshBasicMaterial({ color: '#35ff6e', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
 
-const indicatorOffMat = mat('#4a4f56', { roughness: 0.5 }); // unlit indicator (gate system is off)
+const indicatorOffMat = new THREE.MeshStandardMaterial({ color: '#e0283a', roughness: 0.4, emissive: '#ff2030', emissiveIntensity: 0.25 }); // lane status (X = closed)
 function makeXMark(parent, x, z, active) {
   const grp = new THREE.Group();
   grp.position.set(x, POD_H + 0.004, z);
@@ -192,7 +194,7 @@ function makeXMark(parent, x, z, active) {
     const r = mesh(new THREE.BoxGeometry(0.245, 0.012, 0.05), indicatorOffMat, 0, 0.002, 0, grp); r.rotation.y = a;
   }
   parent.add(grp);
-  return; // system off: no status lights
+  return;
   gate.xMarks.push(grp);
   // green check (shown after successful verification)
   const chk = new THREE.Group();
@@ -251,8 +253,7 @@ for (const lc of LANES) for (const side of [-1, 1]) {
   panel.userData.noShadow = true;
   mesh(new THREE.BoxGeometry(0.03, 0.66, 0.04), M.steel, dir * 0.015, 0.32, 0, pivot);
   scene.add(pivot);
-  pivot.rotation.y = side < 0 ? -Math.PI / 2 : Math.PI / 2; // emergency release: every lane stays wide open
-  gate.flaps.push(pivot);
+  gate.flaps.push({ pivot, open: side < 0 ? -Math.PI / 2 : Math.PI / 2 }); // closed until the emergency release
 }
 // glass railings from the outer pods to the side walls, closing off the security line
 {
@@ -267,26 +268,92 @@ for (const lc of LANES) for (const side of [-1, 1]) {
 
 // RFID reader built into the gate: no separate pole. Each pod of the visitor's lane carries a
 // small tilted status display at the lane entrance; the antenna sits inside the gate itself.
-const screenTex = canvasTex(256, 256, () => {});
-const screenMat = new THREE.MeshBasicMaterial({ map: screenTex });
-for (const sd of [-1, 1]) {
+const SW = 640, SH = 420;
+const screenTex = canvasTex(SW, SH, () => {});
+const screenMat = new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false });
+for (let k = -4; k <= 3; k++) {
   const d = new THREE.Group();
-  d.position.set(sd * POD_X, POD_H, -0.42);
-  d.rotation.x = 0.4; // face tilts up toward the approaching visitor (-z)
-  addEdges(mesh(new THREE.BoxGeometry(0.3, 0.3, 0.05), M.readerGray, 0, 0.16, 0, d));
-  mesh(new THREE.BoxGeometry(0.1, 0.04, 0.12), M.readerGray, 0, 0.02, 0.02, d);
-  const p = mesh(new THREE.PlaneGeometry(0.25, 0.25), screenMat, 0, 0.16, -0.0265, d);
+  d.position.set(POD_X + k * 2 * POD_X, POD_H, -0.42);
+  d.rotation.x = 0.42; // face tilts up toward people in the lobby (-z)
+  addEdges(mesh(new THREE.BoxGeometry(0.46, 0.32, 0.05), M.readerGray, 0, 0.18, 0, d));
+  mesh(new THREE.BoxGeometry(0.12, 0.05, 0.12), M.readerGray, 0, 0.025, 0.02, d);
+  const p = mesh(new THREE.PlaneGeometry(0.42, 0.276), screenMat, 0, 0.18, -0.0265, d);
   p.rotation.y = Math.PI;
   scene.add(d);
 }
+const gateAlarmLight = new THREE.PointLight('#ff3020', 0, 5, 1.6); gateAlarmLight.position.set(0, 1.5, -0.9); scene.add(gateAlarmLight);
 
-// gate system is off: the status displays are dark
-{
-  const { ctx: g } = screenTex.userData;
-  g.fillStyle = '#07090b'; g.fillRect(0, 0, 256, 256);
-  const gr = g.createLinearGradient(0, 0, 256, 256); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+// status display content for each phase of the gate system
+let lastScreenKey = '';
+function drawScreen(t) {
+  const st = t < GATE.detect ? 'idle' : t < GATE.release ? 'detect' : t < GATE.shutdown ? 'release' : t < GATE.dark ? 'off' : 'dark';
+  const fl = ((t - GATE.detect) * 3.2) % 1 < 0.55;
+  const flick = st === 'off' ? Math.floor(t * 20) : 0;
+  const key = st === 'idle' ? 'idle' : st === 'dark' ? 'dark' : st + Math.floor(t * 15) + fl + flick;
+  if (key === lastScreenKey) return;
+  lastScreenKey = key;
+  const g = screenTex.userData.ctx, W = SW, H = SH, c = W / 2;
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineCap = 'round'; g.lineJoin = 'round';
+  const font = (px, w = 'bold') => { g.font = `${w} ${px}px "Noto Sans", sans-serif`; };
+  const header = (bg) => { g.fillStyle = bg; g.fillRect(0, 0, W, 62); g.fillStyle = '#fff'; font(34); g.fillText('AYVETO', 110, 33); font(22, '600'); g.textAlign = 'right'; g.fillText('GATE 04', W - 24, 33); g.textAlign = 'center'; };
+  const flame = (x, y, s) => { // flame pictogram
+    g.fillStyle = '#ffb000';
+    g.beginPath(); g.moveTo(x, y - 62 * s); g.bezierCurveTo(x + 44 * s, y - 18 * s, x + 46 * s, y + 18 * s, x + 30 * s, y + 40 * s);
+    g.bezierCurveTo(x + 14 * s, y + 58 * s, x - 14 * s, y + 58 * s, x - 30 * s, y + 40 * s);
+    g.bezierCurveTo(x - 50 * s, y + 14 * s, x - 34 * s, y - 14 * s, x - 18 * s, y - 26 * s);
+    g.bezierCurveTo(x - 16 * s, y - 6 * s, x - 6 * s, y + 4 * s, x + 2 * s, y + 2 * s);
+    g.bezierCurveTo(x - 6 * s, y - 24 * s, x - 6 * s, y - 44 * s, x, y - 62 * s); g.fill();
+    g.fillStyle = '#fff3b0'; g.beginPath(); g.ellipse(x, y + 30 * s, 13 * s, 20 * s, 0, 0, 7); g.fill();
+  };
+  if (st === 'idle') {
+    g.fillStyle = '#0a2a44'; g.fillRect(0, 0, W, H); header('#0f3b5f');
+    g.strokeStyle = 'rgba(120,190,255,0.9)'; g.lineWidth = 11;
+    for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(150, 205, 30 + i * 26, -Math.PI / 3.2, Math.PI / 3.2); g.stroke(); }
+    g.fillStyle = '#7fc0ff'; g.fillRect(96, 168, 26, 74);
+    g.fillStyle = '#ffffff'; font(40); g.textAlign = 'left'; g.fillText('SIAP', 300, 175); font(26, '600'); g.fillText('Kartu terdeteksi', 300, 222); g.fillText('otomatis', 300, 254); g.textAlign = 'center';
+    g.fillStyle = '#16a34a'; g.beginPath(); g.arc(W - 48, H - 40, 10, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.7)'; font(20, '600'); g.textAlign = 'right'; g.fillText('SISTEM NORMAL', W - 68, H - 39); g.textAlign = 'center';
+  } else if (st === 'detect') {
+    g.fillStyle = fl ? '#c4101c' : '#7a0710'; g.fillRect(0, 0, W, H); header('#4d040a');
+    flame(98, 168, 1.05);
+    g.fillStyle = '#fff'; font(54); g.textAlign = 'left'; g.fillText('KEBAKARAN', 180, 132); g.fillText('TERDETEKSI', 180, 188); g.textAlign = 'center';
+    font(24, '600'); g.fillStyle = '#ffe1e1'; g.fillText('FIRE DETECTED', c, 252);
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(16, 282, W - 32, 120);
+    g.fillStyle = '#fff'; font(22, '600'); g.textAlign = 'left';
+    g.fillText('LOKASI: AREA KANTOR', 34, 312); g.fillText('SENSOR ASAP: AKTIF', 34, 346); g.fillText('ALARM: MENYALA', 34, 380);
+    g.textAlign = 'center';
+    for (let k = 0; k < 3; k++) { g.fillStyle = fl ? '#ffd400' : '#6b5a00'; g.beginPath(); g.arc(W - 70, 312 + k * 34, 10, 0, 7); g.fill(); }
+  } else if (st === 'release' || (st === 'off' && flick % 3 !== 0)) {
+    g.fillStyle = '#0c7a35'; g.fillRect(0, 0, W, H); header('#06451d');
+    g.fillStyle = '#fff'; font(48); g.fillText('GATE DIBUKA', c, 122);
+    font(24, '600'); g.fillText('EMERGENCY OPEN · SEMUA JALUR', c, 168);
+    g.strokeStyle = '#fff'; g.lineWidth = 16;
+    for (const ax of [c - 150, c, c + 150]) { const ph = ((t * 2) % 1) * 22; g.beginPath(); g.moveTo(ax, 205 + ph); g.lineTo(ax, 290 + ph); g.stroke(); g.beginPath(); g.moveTo(ax - 32, 258 + ph); g.lineTo(ax, 292 + ph); g.lineTo(ax + 32, 258 + ph); g.stroke(); }
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, H - 62, W, 62);
+    g.fillStyle = '#fff'; font(26); g.fillText(st === 'off' ? 'SISTEM DIMATIKAN…' : 'SEGERA EVAKUASI', c, H - 31);
+  } else if (st === 'off') {
+    g.fillStyle = '#05070a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(255,255,255,0.8)'; g.fillRect(c - 160, H / 2 - 2, 320, 4);
+  } else {
+    g.fillStyle = '#05070a'; g.fillRect(0, 0, W, H);
+    const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, 'rgba(255,255,255,0.09)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }
   screenTex.needsUpdate = true;
+}
+function updateGate(t) {
+  drawScreen(t);
+  const detect = t >= GATE.detect && t < GATE.release, release = t >= GATE.release && t < GATE.shutdown;
+  const fl = ((t - GATE.detect) * 3.2) % 1 < 0.55;
+  const off = t >= GATE.shutdown + (Math.floor(t * 20) % 3 === 0 ? 0 : 0.35);
+  const u = smoother(GATE.release + 0.05, GATE.openEnd, t);
+  for (const f of gate.flaps) f.pivot.rotation.y = f.open * u;
+  if (off) { ledMat.emissiveIntensity = 0; indicatorOffMat.color.set('#4a4f56'); indicatorOffMat.emissiveIntensity = 0; }
+  else if (detect) { ledMat.emissive.set('#ff2a2a'); ledMat.emissiveIntensity = fl ? 2.2 : 0.3; indicatorOffMat.color.set('#e0283a'); indicatorOffMat.emissiveIntensity = fl ? 1.6 : 0.2; }
+  else if (release) { ledMat.emissive.set('#27e05a'); ledMat.emissiveIntensity = 1.8; indicatorOffMat.color.set('#4a4f56'); indicatorOffMat.emissiveIntensity = 0; }
+  else { ledMat.emissive.set('#6fa9d6'); ledMat.emissiveIntensity = 0.45; indicatorOffMat.color.set('#e0283a'); indicatorOffMat.emissiveIntensity = 0.25; }
+  gateAlarmLight.color.set(release ? '#30ff6a' : '#ff3020');
+  gateAlarmLight.intensity = off ? 0 : detect ? (fl ? 3.5 : 0.4) : release ? 2.0 : 0;
 }
 
 // reception desk in the lobby, before the gate (visitor side faces the entrance and the walkway)
@@ -902,9 +969,10 @@ const emergency = {};
 function updateEmergency(t) {
   const E = emergency;
   // flames
+  const fireGrow = 0.25 + 0.75 * smooth(-0.3, 2.6, t);
   for (const m of E.flames) {
     const u = m.userData, fl = 0.75 + 0.25 * Math.sin(t * u.f + u.ph) + 0.12 * Math.sin(t * u.f * 2.3 + u.ph * 2);
-    m.scale.set(1.3 * u.r * (0.9 + 0.15 * Math.sin(t * u.f * 0.7 + u.ph)), 1.35 * u.hgt * fl, 1.3 * u.r);
+    m.scale.set(1.3 * u.r * (0.9 + 0.15 * Math.sin(t * u.f * 0.7 + u.ph)) * (0.5 + 0.5 * fireGrow), 1.35 * u.hgt * fl * fireGrow, 1.3 * u.r * (0.5 + 0.5 * fireGrow));
     m.rotation.z = 0.08 * Math.sin(t * 3 + u.ph);
   }
   for (const e of E.embers) {
@@ -912,9 +980,9 @@ function updateEmergency(t) {
     e.position.set(E.FP.x + u.ox + 0.3 * Math.sin(t * 2 + u.ph * 9), 0.9 + a * 3.6, E.FP.z + u.oz);
     e.material.opacity = (1 - a) * 0.9;
   }
-  E.fireLight.intensity = 8 + 2.2 * Math.sin(t * 13) + 1.4 * Math.sin(t * 7.3 + 1);
+  E.fireLight.intensity = (8 + 2.2 * Math.sin(t * 13) + 1.4 * Math.sin(t * 7.3 + 1)) * fireGrow;
   // smoke puffs: rise, then roll outward; density grows over time
-  const grow = 0.55 + 0.45 * smooth(0, 10, t);
+  const grow = 0.2 + 0.8 * smooth(0, 10, t);
   for (const s of E.smoke) {
     const u = s.userData, L = 7, age = (t + u.off) % L;
     const rise = Math.min(age * 1.15, u.top - 1.3), tRise = rise / 1.15, drift = Math.max(0, age - tRise) * u.sp;
@@ -925,11 +993,12 @@ function updateEmergency(t) {
     s.material.opacity = smooth(0, 0.8, age) * (1 - smooth(L - 2, L, age)) * 0.55 * grow;
   }
   // alarm: strobes flash, red lights pulse
-  const strobe = ((t * 1.3) % 1) < 0.1 ? 1 : 0;
+  const alarmOn = t >= GATE.detect ? 1 : 0;
+  const strobe = (((t - GATE.detect) * 1.3) % 1) < 0.1 ? alarmOn : 0;
   E.strobeMat.emissiveIntensity = 0.2 + 3.5 * strobe;
-  const pulseR = Math.pow(Math.max(0, Math.sin(t * Math.PI * 2 * 0.9)), 2);
+  const pulseR = alarmOn * Math.pow(Math.max(0, Math.sin((t - GATE.detect) * Math.PI * 2 * 0.9)), 2);
   for (const l of E.alarmLights) l.intensity = 9 * pulseR;
-  E.screenMat.color.setScalar(0.75 + 0.25 * pulseR);
+  E.screenMat.color.setScalar(alarmOn ? 0.75 + 0.25 * pulseR : 0.06);
 }
 
 // ---------------------------------------------------------------- evacuation crowd
@@ -1012,13 +1081,16 @@ guard.wand.visible = false;
 // Camera keyframes: [t, azimuth, height, radius, targetX, targetY, targetZ, follow]
 // azimuth 0 = camera on the +z side of the target (behind people walking out toward -z).
 const CAM_KEYS = [
-  [0.0, Math.PI + 0.31, 2.9, 11.5, 4.5, 2.1, 15.0, 0],   // office: fire in the back corner, alarm, people start leaving
-  [3.2, Math.PI - 0.5, 5.4, 10.5, 0.8, 0.9, 7.5, 0],     // the crowd heads for the gates
-  [6.6, Math.PI - 0.78, 5.6, 11.0, 0, 0.8, 2.0, 0.15],   // all 7 gates open, system off, people streaming through
-  [9.6, 1.55, 5.0, 9.5, 0, 0.8, -1.5, 0.45],             // swing round as the visitor passes the gate
-  [12.6, 0.55, 4.0, 7.2, -0.2, 0.9, -6, 0.85],           // following the visitor through the lobby
-  [16.2, 0.25, 3.6, 6.4, -0.4, 0.9, -11, 1],             // the guard waves everyone to the open doors
-  [20.0, 0.12, 4.6, 6.8, -0.5, 0.8, -15, 1],             // out through the entrance
+  [0.0, Math.PI + 0.2, 0.2, 1.05, 0.85, 1.24, -0.52, 0],    // close-up: the gate's status display (system normal)
+  [1.3, Math.PI + 0.22, 0.2, 0.98, 0.85, 1.24, -0.52, 0],
+  [2.5, Math.PI + 0.24, 0.22, 1.02, 0.85, 1.24, -0.52, 0],   // "KEBAKARAN TERDETEKSI"
+  [3.8, Math.PI + 0.3, 0.6, 3.2, 0.3, 1.1, 0.0, 0],          // pull back: emergency release, every flap opens
+  [5.8, Math.PI - 0.12, 2.2, 8.4, 0.6, 1.0, 5.0, 0],         // system dead; fire and smoke in the office, people leaving
+  [8.2, Math.PI - 0.78, 5.6, 11.0, 0, 0.8, 2.0, 0.15],       // all 7 gates open, people streaming through
+  [11.2, 1.55, 5.0, 9.5, 0, 0.8, -1.5, 0.45],                // swing round as the visitor passes the gate
+  [14.2, 0.55, 4.0, 7.2, -0.2, 0.9, -6, 0.85],               // following the visitor through the lobby
+  [17.6, 0.25, 3.6, 6.4, -0.4, 0.9, -11, 1],                 // the guard waves everyone to the open doors
+  [21.0, 0.12, 4.6, 6.8, -0.5, 0.8, -15, 1],                 // out through the entrance
   [24.5, 0.05, 8.6, 9.6, -0.6, 0.5, -20.5, 0.7],         // crane up over the facade: assembly point outside
 ];
 function camChannel(t, ch) {
@@ -1079,7 +1151,7 @@ function update(t) {
   g.body.position.y = Math.sin(t * 1.7) * 0.004;
   for (const sd of [1, -1]) { g.legs[sd].hip.rotation.x = 0; g.legs[sd].knee.rotation.x = 0; }
   const wave = Math.sin(t * 5.2);
-  const guide = smooth(0.4, 1.0, t);
+  const guide = smooth(GATE.detect + 0.6, GATE.detect + 1.2, t);
   g.upper.rotation.x = 0.03;
   g.arms[-1].shoulder.rotation.set(-0.35 * guide, 0, -1.25 * guide + 0.12 * wave * guide);
   g.arms[-1].elbow.rotation.set(-0.15 - 0.2 * guide, 0, 0);
@@ -1089,6 +1161,7 @@ function update(t) {
 
   // ---------------- fire alarm, fire and smoke
   updateEmergency(t);
+  updateGate(t);
 
   // ---------------- camera
   const ch = i => camChannel(t, i);

@@ -4,6 +4,9 @@
 // doors -> outside assembly point. Nobody walks backward.
 
 export const SIM = { DT: 1 / 60, DURATION: 24.5, R: 0.25 };
+// people only react once the fire alarm sounds (t = 1.3 s); the first of them reaches the gate
+// after the gate system has already released every lane
+const DELAY_OFF = 1.7, SPEED_K = 1.1;
 
 export const LANE_XS = [-3, -2, -1, 0, 1, 2, 3].map(k => k * 1.7);
 const DOOR = { x: -0.45, z: -14, xmin: -1.38, xmax: 0.48 };
@@ -59,14 +62,14 @@ export function makeAgents() {
   const okSpot = (x, z, list) => list.every(a => Math.hypot(a.x0 - x, a.z0 - z) > 0.85) &&
     OBSTACLES.every(([ox, oz, or]) => Math.hypot(ox - x, oz - z) > or + 0.45);
   // the main character (yellow shirt) starts in the middle of the office, uses the centre lane
-  agents.push({ id: 'user', x0: 0.35, z0: 9.2, face: Math.PI, v0: 1.5, delay: 0.5, lane: 0 });
+  agents.push({ id: 'user', x0: 0.35, z0: 9.2, face: Math.PI, v0: 1.5 * SPEED_K, delay: 0.5 + DELAY_OFF, lane: 0 });
   // office workers spread around the office
   let tries = 0;
   while (agents.length < 37 && tries++ < 5000) {
     const x = -8.8 + r() * 17.6, z = 3.3 + Math.pow(r(), 1.3) * 14.5;
     if (x > 3.8 && z > 15.5) continue; // too close to the fire
     if (!okSpot(x, z, agents)) continue;
-    agents.push({ id: 'o' + agents.length, x0: x, z0: z, face: r() * Math.PI * 2, v0: 1.32 + r() * 0.38, delay: 0.15 + r() * 2.3 });
+    agents.push({ id: 'o' + agents.length, x0: x, z0: z, face: r() * Math.PI * 2, v0: (1.32 + r() * 0.38) * SPEED_K, delay: 0.15 + r() * 2.3 + DELAY_OFF });
   }
   // lanes: nearest lane, balanced (max 6 per lane), user fixed on lane 0
   const count = LANE_XS.map(() => 0);
@@ -87,7 +90,7 @@ export function makeAgents() {
     { id: 'chatB', x0: -5.1, z0: -8.9, face: -1.6 },
     { id: 'chatC', x0: -6.2, z0: -9.3, face: 0.4 },
   ];
-  for (const a of lobby) agents.push({ ...a, v0: 1.3 + r() * 0.3, delay: 0.3 + r() * 1.2, lane: null });
+  for (const a of lobby) agents.push({ ...a, v0: (1.3 + r() * 0.3) * SPEED_K, delay: 0.3 + r() * 1.2 + DELAY_OFF, lane: null });
   agents.forEach((a, i) => { a.idx = i; a.doorX = DOOR.x + (((i * 7) % 3) - 1) * 0.62; });
   return agents;
 }
