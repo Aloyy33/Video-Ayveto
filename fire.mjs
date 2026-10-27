@@ -31,9 +31,7 @@ export const fireLoud = t => FIRES.reduce((s, f, i) => s + fireSize(i, t) * f[2]
 
 export function soundEvents() {
   const ev = [];
-  for (let t = GATE.detect; t < GATE.shutdown - 0.05; t += 0.32) ev.push({ t, kind: 'beep', g: 1, f: Math.round((t - GATE.detect) / 0.32) % 2 ? 880 : 1175 });
   ev.push({ t: GATE.press, kind: 'click', g: 1 });
-  ev.push({ t: GATE.release, kind: 'chime', g: 1 });
   ev.push({ t: GATE.release + 0.05, kind: 'motor', g: 1, dur: GATE.openEnd - GATE.release });
   ev.push({ t: GATE.shutdown, kind: 'powerdown', g: 1 });
   FIRES.forEach(([, , , t0], i) => { if (i) ev.push({ t: t0, kind: 'whoosh', g: 0.9 }); });

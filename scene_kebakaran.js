@@ -1,8 +1,7 @@
 // AYVETO fire evacuation (big fire) — deterministic Three.js animation.
-// Opens on the gate's status display. A fire breaks out in the office and spreads fast; the gate
-// system detects it and shows KEBAKARAN TERDETEKSI, but the lanes stay locked. The security guard
-// runs to the reception desk and presses the emergency button: the system releases every lane and
-// shuts itself down with all 7 lanes wide open. In thick smoke everyone (including the visitor in the yellow shirt) runs
+// A fire breaks out in the office and the fire alarm goes off. The camera follows the security
+// guard sprinting to the reception desk to press the emergency button; the gate system powers off
+// and all 7 lanes swing wide open. In thick smoke everyone (including the visitor in the yellow shirt) runs
 // out through the gates, the lobby and the three entrance doors to the assembly point outside.
 // Every frame is a pure function of time `t` (seconds), so the same scene can be
 // played live in a browser or rendered frame-by-frame to video (see render.mjs).
@@ -293,9 +292,10 @@ const gateAlarmLight = new THREE.PointLight('#ff3020', 0, 5, 1.6); gateAlarmLigh
 // status display content for each phase of the gate system
 let lastScreenKey = '';
 function drawScreen(t) {
-  const st = t < GATE.detect ? 'idle' : t < GATE.release ? 'detect' : t < GATE.shutdown ? 'release' : t < GATE.dark ? 'off' : 'dark';
+  let st = t < GATE.shutdown ? 'idle' : t < GATE.dark ? 'off' : 'dark';
   const fl = ((t - GATE.detect) * 3.2) % 1 < 0.55;
   const flick = st === 'off' ? Math.floor(t * 20) : 0;
+  if (st === 'off' && flick % 3 !== 0) st = 'idle'; // flickers as the power is cut
   const key = st === 'idle' ? 'idle' : st === 'dark' ? 'dark' : st + Math.floor(t * 15) + fl + flick;
   if (key === lastScreenKey) return;
   lastScreenKey = key;
@@ -358,9 +358,9 @@ function drawScreen(t) {
 }
 function updateGate(t) {
   drawScreen(t);
-  const detect = t >= GATE.detect && t < GATE.release, release = t >= GATE.release && t < GATE.shutdown;
-  const fl = ((t - GATE.detect) * 3.2) % 1 < 0.55;
-  const off = t >= GATE.shutdown + (Math.floor(t * 20) % 3 === 0 ? 0 : 0.35);
+  // runs normally until the emergency button is pressed, then the power is cut (brief flicker)
+  const detect = false, release = false, fl = false;
+  const off = t >= GATE.shutdown + (Math.floor(t * 20) % 3 === 0 ? 0 : 0.4);
   const u = smoother(GATE.release + 0.05, GATE.openEnd, t);
   for (const f of gate.flaps) f.pivot.rotation.y = f.open * u;
   if (off) { ledMat.emissiveIntensity = 0; indicatorOffMat.color.set('#4a4f56'); indicatorOffMat.emissiveIntensity = 0; }
@@ -1437,14 +1437,13 @@ function guardAt(t) {
 // azimuth 0 = camera on the +z side of the target (behind people running out toward -z),
 // azimuth PI = in front of them. follow blends the target onto the visitor in yellow.
 const CAM_KEYS = [
-  [0.0, Math.PI + 0.2, 0.2, 1.05, 0.85, 1.24, -0.52, 0, 0],    // close-up: the gate's status display (system normal)
-  [1.0, Math.PI + 0.22, 0.2, 0.98, 0.85, 1.24, -0.52, 0, 0],
-  [1.7, Math.PI + 0.25, 0.24, 1.08, 0.85, 1.24, -0.52, 0, 0], // "KEBAKARAN TERDETEKSI" - gate still locked
-  [2.0, Math.PI + 0.26, 0.25, 1.12, 0.85, 1.24, -0.52, 0, 0],  // (hold, so the move to the reception starts here)
-  [2.55, 4.6, 1.2, 4.4, 2.6, 1.0, -7.4, 0, 0],                 // the guard sprints to the reception desk
-  [3.12, 5.2, 0.7, 1.95, 3.3, 1.15, -5.6, 0, 0],               // close on the emergency button being pressed
-  [3.6, 5.24, 0.72, 2.05, 3.3, 1.15, -5.6, 0, 0],
-  [4.45, Math.PI + 0.35, 0.9, 3.6, 0.3, 1.1, 0.0, 0, 0],       // back at the gates: every flap swings open, the crowd pushes through
+  [0.0, Math.PI - 0.15, 0.6, 3.6, 1.9, 1.3, -9.6, 0, 0],      // behind the guard at his post: fire in the office beyond the gates
+  [1.3, Math.PI - 0.2, 0.6, 3.5, 2.0, 1.3, -9.4, 0, 0],        // the alarm goes off
+  [2.3, Math.PI - 0.6, 0.65, 3.4, 2.7, 1.25, -7.6, 0, 0],      // tracking him as he sprints to the reception desk
+  [3.12, Math.PI - 0.95, 0.55, 2.0, 3.35, 1.15, -5.65, 0, 0],  // close: he slams the emergency button
+  [3.55, Math.PI - 0.9, 0.6, 2.1, 3.35, 1.15, -5.65, 0, 0],
+  [4.3, Math.PI - 0.55, 1.1, 5.0, 0.6, 1.0, -0.3, 0, 0],       // pan to the gates: system dead, every flap swinging open
+  [4.9, Math.PI - 0.5, 1.15, 5.1, 0.5, 1.0, -0.1, 0, 0],
   [6.0, Math.PI - 0.1, 1.9, 7.4, 0.4, 1.1, 4.0, 0.3, -1.0],    // system dead; the office on fire, people running at the gates
   [7.4, Math.PI - 0.62, 2.6, 7.8, 0, 1.0, 0.4, 0.35, -0.4],    // all 7 lanes open, the crowd streams through
   [9.2, 1.35, 1.8, 5.4, 0, 1.2, -5, 0.9, 0.8],                 // swing round behind the visitor in the lobby

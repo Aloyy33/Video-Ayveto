@@ -5,7 +5,9 @@
 // and presses the emergency button, and only then does the system release every lane. People who
 // reach the gates before that crowd up behind the closed flaps.
 const intensity = () => 0, PLANT_FALLS = [], TILES = [];
-export const GATE = { detect: 1.0, press: 3.15, release: 3.75, openEnd: 4.6, shutdown: 5.4, dark: 6.0 };
+// detect = the building's fire alarm goes off; the gate system itself runs normally (lanes locked)
+// until the guard presses the emergency button: then it powers off and every flap swings open
+export const GATE = { detect: 1.0, press: 3.15, release: 3.3, openEnd: 4.6, shutdown: 3.18, dark: 3.75 };
 
 // ---- the security guard: post by the entrance -> runs to reception -> presses the emergency
 // button -> runs back to the doors and waves everyone out -> leaves last
@@ -219,7 +221,7 @@ export function simulate(agents, dests, tiles = []) {
       if (sp > cap) { s.vx *= cap / sp; s.vz *= cap / sp; }
       const px = s.x, pz = s.z;
       s.x += s.vx * DT; s.z += s.vz * DT;
-      if (a.lane !== null && t < GATE.release + 0.45 && s.z < 0.42 && pz >= 0.42) { s.z = 0.42; s.vz = Math.max(0, s.vz); }
+      if (a.lane !== null && t < GATE.release + 0.8 && s.z < 0.42 && pz > -0.3) { s.z = 0.42; s.vz = Math.max(0, s.vz); }
       if (a.lane !== null && s.z > -1.7 && s.z < 2.0) {
         s.x += (a.lane - s.x) * Math.min(1, 9 * DT);
         if (Math.abs(s.z) < 1.4) s.x = Math.min(a.lane + 0.22, Math.max(a.lane - 0.22, s.x));
