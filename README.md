@@ -49,3 +49,7 @@ ffmpeg -i ayveto_evakuasi_kebakaran_video.mp4 -i kebakaran_audio.wav -c:v copy -
 # preview stills / free debug camera (x,y,z,targetX,targetY,targetZ)
 node render.mjs --scene scene_gempa --stills 3,10,18 --cam 2.6,1.7,14.2,0.3,0.8,17
 ```
+
+## Presentation photos – [`foto_presentasi/`](foto_presentasi)
+
+Ten 2560×1440 PNG stills of the access process for slides (Canva etc.), also bundled as [`foto_presentasi_ayveto.zip`](foto_presentasi/foto_presentasi_ayveto.zip). They are rendered from `scene_akses.js` (the access-process scene), e.g. `node render.mjs --scene scene_akses --w 2560 --h 1440 --stills 12.3 --cam 1.7,1.75,-2.0,-0.3,1.0,-4.3`.
