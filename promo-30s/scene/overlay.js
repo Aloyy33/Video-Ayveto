@@ -121,7 +121,7 @@ function zoomBurst(ctx, t, t0, dur) {
   ctx.restore();
 }
 
-let LAY = null;
+let LAY = null, LAY2 = null;
 export function drawOverlay(ctx, t, fade) {
   ctx.clearRect(0, 0, W, H);
   // ---- Scene 1
@@ -131,7 +131,10 @@ export function drawOverlay(ctx, t, fade) {
   kinetic(ctx, t, { text: 'REIMAGINED.', t0: 2.8, t1: 3.95, x: LAY.x2, y: H / 2, size: 118, grad: ['#bff1ff', '#2fc8ff'], align: 'left' });
   // ---- Scene 2
   scrim(ctx, 'center', ramp(t, 6.1, 6.3) * (1 - ramp(t, 7.7, 7.9)));
-  kinetic(ctx, t, { text: 'WHY STOP TO TAP?', t0: 6.15, t1: 7.85, x: W / 2, y: H / 2, size: 124 });
+  if (!LAY2) { ctx.save(); ctx.font = '800 132px Montserrat'; ctx.letterSpacing = (0.04 * 132) + 'px'; const ws = ['STOP.', 'TAP.', 'WAIT.'].map(w => ctx.measureText(w).width); ctx.restore(); const gap = 70, tot = ws[0] + ws[1] + ws[2] + 2 * gap; let x = W / 2 - tot / 2; LAY2 = ws.map(w => { const r = x; x += w + gap; return r; }); }
+  kinetic(ctx, t, { text: 'STOP.', t0: 6.15, t1: 7.85, x: LAY2[0], y: H / 2, size: 132, align: 'left' });
+  kinetic(ctx, t, { text: 'TAP.', t0: 6.6, t1: 7.85, x: LAY2[1], y: H / 2, size: 132, align: 'left' });
+  kinetic(ctx, t, { text: 'WAIT.', t0: 7.05, t1: 7.85, x: LAY2[2], y: H / 2, size: 132, align: 'left', grad: ['#bff1ff', '#2fc8ff'] });
   energySweep(ctx, t, 7.8, 0.5, 1);
   // ---- Scene 3 (three beats)
   scrim(ctx, 'left', win(t, 9.45, 14.6, 0.2, 0.3));

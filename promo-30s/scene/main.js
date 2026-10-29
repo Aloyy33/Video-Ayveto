@@ -196,7 +196,7 @@ energy.forEach(e => main.add(e));
 
 /* ---------------- shots ---------------- */
 function lookFrom(pos, tgt, fov, roll = 0) { camera.position.copy(pos); camera.up.set(Math.sin(roll), Math.cos(roll), 0); camera.lookAt(tgt); camera.fov = fov; camera.updateProjectionMatrix(); }
-const IMPACTS = [0.35, 2.55, 2.8, 4.0, 6.15, 8.05, 9.5, 11.0, 12.9, 15.0, 22.0, 24.2];
+const IMPACTS = [0.35, 2.55, 2.8, 4.0, 6.15, 6.6, 7.05, 8.05, 9.5, 11.0, 12.9, 15.0, 22.0, 24.2];
 function shake(t) {
   let a = 0; for (const i of IMPACTS) if (t >= i) a = Math.max(a, Math.exp(-(t - i) * 9) * 1.0);
   return V(noise1(t * 40) * a, noise1(t * 40 + 50) * a, 0).multiplyScalar(0.012);
@@ -320,6 +320,7 @@ function update(t) {
     qp(q2, STOP2.z - 2.0, 6.3, 1.2, 2.2);
     if (t > 6.4) { const a = eio(ramp(t, 6.4, 6.8)); q2.arms[0].sh.rotation.x = -0.9 * a; q2.arms[0].el.rotation.x = -1.4 * a; q2.arms[0].sh.rotation.z = -0.3 * a; q2.head.rotation.x = 0.4 * a; }
     flash = 0.25 * Math.exp(-(t - 4.0) * 12) + 0.15 * Math.exp(-Math.max(0, t - 6.15) * 10) * (t > 6.15 ? 1 : 0);
+    for (const x of [6.6, 7.05]) flash += 0.12 * Math.exp(-Math.max(0, t - x) * 10) * (t > x ? 1 : 0);
     flash += 0.7 * Math.exp(-Math.pow((t - 8.03) / 0.05, 2));
   }
 

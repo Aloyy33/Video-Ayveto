@@ -9,7 +9,7 @@
 | Time | Scene | On-screen text |
 | --- | --- | --- |
 | 0–4 s | Darkness, bass impact, blue light streaks reveal the AYVETO gate, digital scan, push-in | ACCESS. REIMAGINED. |
-| 4–8 s | An office worker stops at a conventional gate to tap a card (reader blinks red, then green) while a queue forms | WHY STOP TO TAP? |
+| 4–8 s | An office worker stops at a conventional gate to tap a card (reader blinks red, then green) while a queue forms | STOP. / TAP. / WAIT. (one word per beat) |
 | 8–15 s | Energy sweep into the AYVETO gate. The same worker walks through holding the card: detection waves, X marks go dark, glass flaps open, he never stops | NO TAPPING. / AUTOMATIC DETECTION. / SEAMLESS ACCESS. |
 | 15–22 s | Floating phone with the real app screens: Home (Tapless Detection, Notifications), Virtual IC Card, Report Lost Card + confirmation, Access History, Profile | SMARTER ACCESS. / MORE CONTROL. |
 | 22–30 s | Gate and phone together, joined by energy lines, final impact, logo reveal, fade to black | AYVETO / WALK IN. NO TAPPING. / A Smarter Way to Access. |
