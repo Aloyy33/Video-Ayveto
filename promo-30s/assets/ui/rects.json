@@ -1,0 +1,58 @@
+{
+ "el-tapless": {
+  "screen": "home",
+  "x": 14,
+  "y": 150,
+  "w": 362,
+  "h": 66
+ },
+ "el-live": {
+  "screen": "home",
+  "x": 14,
+  "y": 230,
+  "w": 362,
+  "h": 132
+ },
+ "el-tiles": {
+  "screen": "home",
+  "x": 16,
+  "y": 412,
+  "w": 358,
+  "h": 90
+ },
+ "el-notif": {
+  "screen": "home",
+  "x": 262.671875,
+  "y": 412,
+  "w": 111.328125,
+  "h": 90
+ },
+ "el-vcard": {
+  "screen": "card",
+  "x": 19,
+  "y": 138,
+  "w": 352,
+  "h": 178
+ },
+ "el-modal": {
+  "screen": "reportmodal",
+  "x": 32,
+  "y": 268,
+  "w": 326,
+  "h": 273.375
+ },
+ "el-row1": {
+  "screen": "history",
+  "x": 22,
+  "y": 224,
+  "w": 346,
+  "h": 57
+ },
+ "el-sec": {
+  "screen": "profile",
+  "x": 24,
+  "y": 172,
+  "w": 342,
+  "h": 122
+ }
+}
