@@ -1,0 +1,245 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face{font-family:Outfit;font-weight:300;src:url(/node_modules/@fontsource/outfit/files/outfit-latin-300-normal.woff2)}
+@font-face{font-family:Outfit;font-weight:400;src:url(/node_modules/@fontsource/outfit/files/outfit-latin-400-normal.woff2)}
+@font-face{font-family:Outfit;font-weight:500;src:url(/node_modules/@fontsource/outfit/files/outfit-latin-500-normal.woff2)}
+@font-face{font-family:Outfit;font-weight:600;src:url(/node_modules/@fontsource/outfit/files/outfit-latin-600-normal.woff2)}
+@font-face{font-family:Outfit;font-weight:700;src:url(/node_modules/@fontsource/outfit/files/outfit-latin-700-normal.woff2)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:transparent;font-family:Outfit,sans-serif;-webkit-font-smoothing:antialiased}
+.screen{position:relative;width:390px;height:844px;overflow:hidden;color:#fff;
+  background:linear-gradient(180deg,#03050d 0%,#04070f 52%,#0b1638 76%,#1a2b72 92%,#22378f 100%);margin-bottom:20px}
+.status{position:absolute;top:0;left:0;right:0;height:50px;display:flex;align-items:center;justify-content:space-between;padding:6px 26px 0 34px}
+.status .time{font-weight:600;font-size:15.5px;letter-spacing:.2px}
+.status .icons{display:flex;gap:5px;align-items:center}
+.bars{display:flex;gap:1.6px;align-items:flex-end;height:11px}
+.bars i{display:block;width:3px;background:#fff;border-radius:1px}
+.wifi svg{width:16px;height:16px;stroke-width:2.6}
+.batt{width:25px;height:12px;border:1.3px solid rgba(255,255,255,.55);border-radius:3.5px;padding:1.4px;position:relative}
+.batt b{display:block;height:100%;background:#fff;border-radius:1.5px}
+.batt:after{content:"";position:absolute;right:-3.5px;top:3.2px;width:1.6px;height:4px;background:rgba(255,255,255,.55);border-radius:0 1px 1px 0}
+.nav{position:absolute;left:20px;right:20px;bottom:26px;height:72px;background:#fff;border-radius:38px;display:flex;justify-content:space-around;align-items:center;padding:0 10px}
+.nav .it{display:flex;flex-direction:column;align-items:center;gap:4px;color:#4b5565;font-size:11.5px;font-weight:500;width:64px;position:relative}
+.nav .it svg{width:23px;height:23px;stroke-width:1.7}
+.nav .it.on{color:#2f6fe0}
+.nav .it.on:after{content:"";position:absolute;bottom:-8px;width:36px;height:3px;border-radius:2px;background:#2f6fe0}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#fff}
+.dim{position:absolute;inset:0;background:rgba(18,40,72,.72)}
+/* HOME */
+.welcome{position:absolute;top:84px;left:24px;color:#9cc0ff;font-size:14.5px;font-weight:400}
+.hello{position:absolute;top:104px;left:24px;font-size:23px;font-weight:700;display:flex;align-items:center;gap:4px}
+.hello img{width:24px;height:24px;margin-left:4px}
+.avatar{position:absolute;top:86px;right:24px;width:44px;height:44px;border-radius:50%;background:#1f64b0}
+.tapless{position:absolute;top:150px;left:14px;right:14px;height:66px;border-radius:13px;background:#fff;display:flex;align-items:center;padding:0 16px;gap:14px;color:#0f1d33}
+.tapless .dot{width:34px;height:34px;border-radius:50%;background:#e6f1fb;display:flex;align-items:center;justify-content:center}
+.tapless .dot i{width:10px;height:10px;border-radius:50%;background:#14a4d4}
+.tapless .t1{font-size:12px;color:#55607a}
+.tapless .t2{font-size:15.5px;font-weight:600;color:#0d1a33}
+.tapless .pill{margin-left:auto;background:#e3f3fb;color:#1a6f99;font-size:11px;font-weight:700;padding:5px 9px;border-radius:7px;letter-spacing:.4px}
+.live{position:absolute;top:230px;left:14px;right:14px;height:132px;border-radius:15px;background:linear-gradient(160deg,#16314a,#10253c);padding:13px 18px}
+.live .lp{display:inline-flex;align-items:center;gap:5px;background:#2b3e52;border-radius:5px;padding:3px 8px 3px 5px;font-size:11px;font-weight:600;color:#bcd0e2;letter-spacing:.5px}
+.live .lp .g{width:13px;height:13px;border-radius:50%;background:#2e9bd0;display:flex;align-items:center;justify-content:center}
+.live .lp .g svg{width:10px;height:10px;color:#cdeaff;stroke-width:2.2}
+.live .wf{position:absolute;right:18px;top:15px;color:#2bb7e6}
+.live .wf svg{width:17px;height:17px;stroke-width:2.4}
+.live .k{margin-top:13px;font-size:11.5px;color:#93a6ba;letter-spacing:.3px}
+.live .v{font-size:19px;font-weight:700;margin-top:2px}
+.live .hr{height:1px;background:rgba(255,255,255,.12);margin:10px 0 9px}
+.live .d{font-size:12px;color:#93a6ba}
+.live .sig{position:absolute;right:18px;bottom:16px;display:flex;gap:2px;align-items:flex-end}
+.live .sig i{width:3px;background:#2bb7e6;border-radius:1px}
+.qa{position:absolute;top:376px;left:24px;font-size:16.5px;font-weight:700}
+.tiles{position:absolute;top:412px;left:16px;right:16px;display:flex;gap:12px}
+.tile{flex:1;height:90px;border-radius:15px;background:#fff;box-shadow:0 0 0 2px rgba(120,170,230,.35),0 0 14px rgba(90,150,230,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#0f1d33;font-size:12.5px;font-weight:600;position:relative}
+.tile .ic{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.tile .ic svg{width:19px;height:19px;stroke-width:2}
+.ic.red{background:#fde8e8;color:#d93030}.ic.blue{background:#e5eef8;color:#2a67b8}.ic.cyan{background:#e2f4fa;color:#1aa6cf}
+.badge{position:absolute;top:-6px;right:-7px;width:16px;height:16px;border-radius:50%;background:#ef4444;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+/* CARD */
+.title{position:absolute;top:96px;left:26px;font-size:20.5px;font-weight:700}
+.vcard{position:absolute;top:138px;left:19px;right:19px;height:178px;border-radius:17px;background:linear-gradient(150deg,#173a52 0%,#112c43 55%,#0e2236 100%);border:1.3px solid rgba(190,225,240,.55);padding:18px 18px}
+.vcard .top{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16.5px;letter-spacing:.5px}
+.vcard .logo{width:28px;height:28px;border-radius:7px;border:1.5px solid #2cc0e8;display:flex;align-items:center;justify-content:center;color:#2cc0e8}
+.vcard .logo svg{width:17px;height:17px;stroke-width:2}
+.vcard .act{margin-left:auto;border:1.3px solid #2cb9e0;color:#3cc6ea;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:9px;letter-spacing:.5px}
+.vcard .chip{position:absolute;left:24px;top:76px;display:flex;gap:3px}
+.vcard .chip i{width:6px;height:16px;background:#5d6f80;border-radius:1px}
+.vcard .nfc{position:absolute;right:22px;top:72px;color:#8a99a8;transform:rotate(90deg)}
+.vcard .nfc svg{width:22px;height:22px;stroke-width:1.8}
+.vcard .nm{position:absolute;left:20px;top:116px;font-size:17px;font-weight:700}
+.vcard .id{position:absolute;left:20px;top:142px;font-size:11.5px;color:#8b9cad;letter-spacing:.3px}
+.vcard .cm{position:absolute;right:20px;top:142px;font-size:11px;color:#36bfe6;font-weight:600;letter-spacing:.4px}
+.cid{position:absolute;top:327px;left:19px;right:19px;height:46px;border-radius:10px;background:#eef0fa;display:flex;align-items:center;justify-content:space-between;padding:0 16px;color:#0f1a2e}
+.cid span{font-size:13px;color:#79839a}.cid b{font-size:14.5px;font-weight:700}
+.btn{position:absolute;left:19px;right:19px;height:44px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:600}
+.btn svg{width:16px;height:16px;stroke-width:2.1}
+.b1{top:386px;color:#1d4f8f;border:2px solid #3f7fd6;box-shadow:0 0 12px rgba(80,150,240,.45)}
+.b2{top:442px;color:#b42323;border:1.5px solid #e58c8c;box-shadow:0 0 10px rgba(240,120,120,.25)}
+.b3{top:498px;color:#16243d;box-shadow:0 0 14px rgba(80,150,240,.35)}
+/* WARNING SCREENS */
+.back{position:absolute;top:96px;left:24px;display:flex;align-items:center;gap:14px;font-size:18px;font-weight:700}
+.back svg{width:20px;height:20px;stroke-width:2.2}
+.circ{position:absolute;left:50%;transform:translateX(-50%);top:226px;width:74px;height:74px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.circ svg{width:30px;height:30px;stroke-width:1.6}
+.warn{position:absolute;top:330px;left:22px;right:22px;border-radius:13px;padding:16px 18px 17px}
+.warn h4{font-size:15.5px;font-weight:700;letter-spacing:.2px;margin-bottom:6px}
+.warn p{font-size:13.2px;line-height:1.45;color:#1d2433}
+.cta{position:absolute;top:466px;left:28px;right:28px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#fff}
+.help{position:absolute;top:530px;left:0;right:0;text-align:center;font-size:12.5px;line-height:1.35;color:#fff}
+/* MODAL */
+.modal{position:absolute;left:32px;right:32px;top:268px;background:#fff;border-radius:18px;padding:20px 22px 22px;text-align:center;color:#132036}
+.modal .mi{width:46px;height:46px;margin:0 auto 6px;display:flex;align-items:center;justify-content:center}
+.modal .mi svg{width:38px;height:38px;stroke-width:1.5}
+.modal h3{font-size:19.5px;font-weight:700;margin-bottom:7px}
+.modal p{font-size:13px;line-height:1.4;color:#4a5466;padding:0 6px;margin-bottom:14px}
+.modal .y{height:45px;border-radius:10px;color:#fff;font-weight:600;font-size:14.5px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.modal .n{height:44px;border-radius:10px;border:1px solid #e3e6ec;font-weight:600;font-size:13.5px;color:#2b3445;display:flex;align-items:center;justify-content:center}
+/* HISTORY */
+.filters{position:absolute;top:142px;left:22px;display:flex;gap:8px}
+.filters span{font-size:13px;font-weight:500;padding:8px 13px;border-radius:17px;background:#eef1f6;color:#1a2232}
+.filters span.on{background:#13263c;color:#fff}
+.sec{position:absolute;left:22px;font-size:13px;font-weight:700;color:#8e98a8;letter-spacing:.8px}
+.row{position:absolute;left:22px;right:22px;height:57px;border-radius:11px;background:#fff;display:flex;align-items:center;padding:0 14px;gap:13px;color:#13203a}
+.row .ri{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.row .ri svg{width:15px;height:15px;stroke-width:2.3}
+.ri.en{background:#e3f6ec;color:#16a160}.ri.ex{background:#fff3e2;color:#f39a1a}
+.row .rt{font-size:14.8px;font-weight:600}.row .rs{font-size:12px;color:#7a8394;margin-top:1px}
+.row .tag{margin-left:auto;font-size:11px;font-weight:600;padding:4px 7px;border-radius:5px}
+.tag.en{background:#e3f6ec;color:#168a52}.tag.ex{background:#fdf0e1;color:#9a5a12}
+/* PROFILE */
+.pav{position:absolute;top:84px;left:32px;width:58px;height:58px;border-radius:50%;background:#0bb4d8;box-shadow:0 0 16px rgba(20,200,240,.65);display:flex;align-items:center;justify-content:center;color:#062030;font-weight:700;font-size:19px}
+.pnm{position:absolute;top:84px;left:104px;font-size:17.5px;font-weight:700}
+.pid{position:absolute;top:107px;left:104px;font-size:11.5px;color:#25b8e0;font-weight:500}
+.pcl{position:absolute;top:122px;left:104px;font-size:12.5px}
+.grp{position:absolute;left:24px;right:24px;background:#fff;border-radius:16px;color:#141c2c;padding:4px 0}
+.grp .li{height:38px;display:flex;align-items:center;padding:0 16px;font-size:13.8px;font-weight:500}
+.grp .li .r{margin-left:auto;display:flex;align-items:center;gap:4px;color:#8f99a8;font-size:12.5px}
+.grp .li .r svg{width:15px;height:15px;stroke-width:2.3;color:#2a3345}
+.grp .li.red{color:#e5484d}
+.tog{width:40px;height:23px;border-radius:12px;background:#11b5d4;position:relative}
+.tog:after{content:"";position:absolute;right:2.5px;top:2.5px;width:18px;height:18px;border-radius:50%;background:#fff}
+</style>
+</head>
+<body>
+<!-- ===== HOME ===== -->
+<div class="screen" id="home">
+  {{status}}
+  <div class="welcome">Welcome back,</div>
+  <div class="hello">Hello, Bryan <img src="wave.svg">!</div>
+  <div class="avatar"></div>
+  <div class="tapless" id="el-tapless"><div class="dot"><i></i></div><div><div class="t1">Tapless Detection</div><div class="t2">Active &amp; Scanning</div></div><div class="pill">ACTIVE</div></div>
+  <div class="live" id="el-live">
+    <span class="lp"><span class="g">{{icon:globe}}</span>LIVE</span>
+    <span class="wf">{{icon:wifi}}</span>
+    <div class="k">LAST DETECTED ACCESS</div>
+    <div class="v">Main Gate — Block A</div>
+    <div class="hr"></div>
+    <div class="d">Today, 8:42 AM</div>
+    <div class="sig"><i style="height:6px"></i><i style="height:9px"></i><i style="height:12px"></i></div>
+  </div>
+  <div class="qa">Quick Actions</div>
+  <div class="tiles" id="el-tiles">
+    <div class="tile"><div class="ic red">{{icon:shield-alert}}</div>Report Lost</div>
+    <div class="tile"><div class="ic blue">{{icon:clock}}</div>Access Logs</div>
+    <div class="tile" id="el-notif"><div class="ic cyan" style="position:relative">{{icon:bell}}<span class="badge">3</span></div>Notifications</div>
+  </div>
+  {{nav:0}}
+</div>
+
+<!-- ===== CARD ===== -->
+<div class="screen" id="card">
+  {{status}}
+  <div class="title">Virtual IC Card</div>
+  <div class="vcard" id="el-vcard">
+    <div class="top"><span class="logo">{{icon:fingerprint}}</span>AYVETO<span class="act">• ACTIVE</span></div>
+    <div class="chip"><i></i><i></i><i></i></div>
+    <div class="nfc">{{icon:wifi}}</div>
+    <div class="nm">Bryan Valentino</div>
+    <div class="id">STU-2024-0847</div>
+    <div class="cm">COMPANY MEMBER</div>
+  </div>
+  <div class="cid"><span>Digital Card ID</span><b>AYV-8472-901X</b></div>
+  <div class="btn b1">{{icon:pause}}Temporarily Block Card</div>
+  <div class="btn b2">{{icon:shield-alert}}Report Lost Card</div>
+  <div class="btn b3">{{icon:credit-card}}Request Card Replacement</div>
+  {{nav:1}}
+</div>
+
+<!-- ===== TEMPORARILY BLOCK ===== -->
+<div class="screen" id="block">
+  {{status}}
+  <div class="back">{{icon:arrow-left}}Temporarily Block Card</div>
+  <div class="circ" style="background:#eef3fb;border:1.5px solid #8fb4e6;color:#2a64b0">{{icon:pause}}</div>
+  <div class="warn" style="background:#f1f1fd;border:1.5px solid #5865f2"><h4 style="color:#2059a8">CRITICAL SECURITY WARNING</h4><p>Temporarily blocking your card will suspend access to all gates until the card is reactivated. You can unblock your card anytime.</p></div>
+  <div class="cta" style="background:#4d6ef5;top:452px">Temporarily Block Card</div>
+  <div class="help" style="top:516px">Need assistance?<br>Support office hours are 8:00 AM — 5:00 PM.</div>
+  {{nav:1}}
+</div>
+
+<!-- ===== REPORT LOST ===== -->
+<div class="screen" id="report">
+  {{status}}
+  <div class="back">{{icon:arrow-left}}Report Lost Card</div>
+  <div class="circ" style="background:#fde3e3;color:#d43a3a">{{icon:shield-alert}}</div>
+  <div class="warn" style="background:#fdf1f1;border:1.5px solid #6f7ae8"><h4 style="color:#e3191f">CRITICAL SECURITY WARNING</h4><p>Reporting your card as lost will immediately block all access gates. This action cannot be undone without formal administrative approval.</p></div>
+  <div class="cta" style="background:#ff1010">Block Card</div>
+  <div class="help">Need assistance?<br>Support office hours are 8:00 AM — 5:00 PM.</div>
+  {{nav:1}}
+</div>
+
+<!-- ===== REPORT CONFIRM ===== -->
+<div class="screen" id="reportmodal">
+  {{status}}
+  <div class="back">{{icon:arrow-left}}Report Lost Card</div>
+  <div class="circ" style="background:#fde3e3;color:#d43a3a">{{icon:shield-alert}}</div>
+  {{nav:1}}
+  <div class="dim"></div>
+  <div class="modal" id="el-modal"><div class="mi" style="color:#d93a3a">{{icon:shield-alert}}</div><h3>Are you sure?</h3><p>Your company access privileges will be instantly terminated upon block confirmation.</p><div class="y" style="background:#ff1010">Yes, Block Card</div><div class="n">Cancel</div></div>
+  <div class="homebar"></div>
+</div>
+
+<!-- ===== HISTORY ===== -->
+<div class="screen" id="history">
+  {{status}}
+  <div class="title" style="top:98px;left:24px;font-size:21px">Access History</div>
+  <div class="filters"><span class="on">All Logs</span><span>Entries Only</span><span>Exits Only</span></div>
+  <div class="sec" style="top:200px">TODAY</div>
+  <div class="row" style="top:224px" id="el-row1"><div class="ri en">{{icon:arrow-down-left}}</div><div><div class="rt">Main Gate — Block A</div><div class="rs">8:42 AM</div></div><span class="tag en">Entry</span></div>
+  <div class="row" style="top:291px"><div class="ri ex">{{icon:square-arrow-out-up-right}}</div><div><div class="rt">Main Gate — Block A</div><div class="rs">8:39 AM</div></div><span class="tag ex">Exit</span></div>
+  <div class="sec" style="top:368px">YESTERDAY</div>
+  <div class="row" style="top:393px"><div class="ri ex">{{icon:square-arrow-out-up-right}}</div><div><div class="rt">Engineering Lab</div><div class="rs">6:15 PM</div></div><span class="tag ex">Exit</span></div>
+  <div class="row" style="top:460px"><div class="ri en">{{icon:arrow-down-left}}</div><div><div class="rt">Engineering Lab</div><div class="rs">2:10 PM</div></div><span class="tag en">Entry</span></div>
+  <div class="row" style="top:527px"><div class="ri ex">{{icon:square-arrow-out-up-right}}</div><div><div class="rt">Central Library</div><div class="rs">1:05 PM</div></div><span class="tag ex">Exit</span></div>
+  <div class="row" style="top:594px"><div class="ri en">{{icon:arrow-down-left}}</div><div><div class="rt">Central Library</div><div class="rs">9:15 AM</div></div><span class="tag en">Entry</span></div>
+  {{nav:2}}
+</div>
+
+<!-- ===== PROFILE ===== -->
+<div class="screen" id="profile">
+  {{status}}
+  <div class="pav">BV</div>
+  <div class="pnm">Bryan Valentino</div>
+  <div class="pid">SEC-990-281-K</div>
+  <div class="pcl">Clearance Level: Authorized Staff</div>
+  <div class="grp" style="top:172px" id="el-sec">
+    <div class="li">Security Center<span class="r">Shield Active {{icon:chevron-right}}</span></div>
+    <div class="li">Notification Presets<span class="r">{{icon:chevron-right}}</span></div>
+    <div class="li">Audit logs History<span class="r">{{icon:chevron-right}}</span></div>
+  </div>
+  <div class="grp" style="top:328px;left:34px;right:22px">
+    <div class="li">My Virtual Card ID<span class="r">SEC-990-281-K</span></div>
+    <div class="li">Tapless RFID Broadcaster<span class="r"><span class="tog"></span></span></div>
+    <div class="li">Corporate Domain<span class="r">sec-tech.co</span></div>
+  </div>
+  <div class="grp" style="top:482px">
+    <div class="li">Technical Support &amp; Manuals<span class="r">{{icon:chevron-right}}</span></div>
+    <div class="li red">Emergency Lock Code<span class="r">{{icon:chevron-right}}</span></div>
+    <div class="li red">Logout Secure Session<span class="r">{{icon:chevron-right}}</span></div>
+  </div>
+  {{nav:3}}
+</div>
+</body>
+</html>
