@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1850" viewBox="0 0 1120 1850" role="img" aria-labelledby="t d">
+<title id="t">Sequence Diagram LMS Assignment</title><desc id="d">Interaksi Lecturer, LMS, dan Student pada proses assignment: pembuatan, pengumpulan, dan penilaian.</desc>
+<defs>
+<marker id="fill" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L9,5 L0,9 z" fill="#d4d4d4"/></marker>
+<marker id="open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="#d4d4d4" stroke-width="1.4"/></marker>
+<style>
+text{font-family:Inter,"Noto Sans",Arial,sans-serif}
+.pn{font-size:13px;font-weight:700;fill:#fff;text-anchor:middle}
+.lb{font-size:12.5px;fill:#f2f2f2;text-anchor:middle}
+.nb{font-size:10px;font-weight:700;fill:#fff;text-anchor:middle}
+.tag{font-size:12px;font-weight:700;fill:#fff}
+.cond{font-size:12.5px;fill:#f2f2f2}
+</style></defs>
+<rect width="1120" height="1850" fill="#2b2b2b"/>
+<line x1="170" y1="98" x2="170" y2="1750" stroke="#8c8c8c" stroke-width="1.2"/>
+<line x1="560" y1="98" x2="560" y2="1750" stroke="#8c8c8c" stroke-width="1.2"/>
+<line x1="950" y1="98" x2="950" y2="1750" stroke="#8c8c8c" stroke-width="1.2"/>
+<rect x="70" y="782" width="980" height="308" fill="none" stroke="#8c8c8c" stroke-width="1.2"/>
+<path d="M70 782 H114 V794 L106 804 H70 Z" fill="#000" stroke="#8c8c8c"/>
+<text x="79" y="798" class="tag">alt</text>
+<rect x="125" y="786" width="138" height="18" fill="#2b2b2b"/><text x="130" y="799" class="cond">[Submission valid]</text>
+<rect x="125" y="924" width="138" height="18" fill="#2b2b2b"/><text x="130" y="937" class="cond">[File tidak valid]</text>
+<rect x="125" y="1008" width="166" height="18" fill="#2b2b2b"/><text x="130" y="1021" class="cond">[Deadline sudah lewat]</text>
+<line x1="70" y1="920" x2="1050" y2="920" stroke="#8c8c8c" stroke-width="1.2" stroke-dasharray="3 4"/>
+<line x1="70" y1="1004" x2="1050" y2="1004" stroke="#8c8c8c" stroke-width="1.2" stroke-dasharray="3 4"/>
+<rect x="70" y="1124" width="980" height="140" fill="none" stroke="#8c8c8c" stroke-width="1.2"/>
+<path d="M70 1124 H116 V1136 L108 1146 H70 Z" fill="#000" stroke="#8c8c8c"/>
+<text x="79" y="1140" class="tag">opt</text>
+<rect x="125" y="1128" width="355" height="18" fill="#2b2b2b"/><text x="130" y="1141" class="cond">[Student memperbarui submission sebelum deadline]</text>
+<line x1="182" y1="150" x2="558" y2="150" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="142" class="lb">Login</text>
+<circle cx="170" cy="150" r="9" fill="#9a9a9a"/><text x="170" y="153.5" class="nb">1</text>
+<line x1="548" y1="198" x2="172" y2="198" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="360.0" y="190" class="lb">Tampilkan dashboard lecturer</text>
+<circle cx="560" cy="198" r="9" fill="#9a9a9a"/><text x="560" y="201.5" class="nb">2</text>
+<line x1="182" y1="246" x2="558" y2="246" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="238" class="lb">Buat assignment</text>
+<circle cx="170" cy="246" r="9" fill="#9a9a9a"/><text x="170" y="249.5" class="nb">3</text>
+<line x1="182" y1="294" x2="558" y2="294" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="286" class="lb">Isi judul, deskripsi, deadline, dan lampiran</text>
+<circle cx="170" cy="294" r="9" fill="#9a9a9a"/><text x="170" y="297.5" class="nb">4</text>
+<line x1="182" y1="342" x2="558" y2="342" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="334" class="lb">Publikasikan assignment</text>
+<circle cx="170" cy="342" r="9" fill="#9a9a9a"/><text x="170" y="345.5" class="nb">5</text>
+<line x1="548" y1="390" x2="172" y2="390" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="360.0" y="382" class="lb">Assignment berhasil dipublikasikan</text>
+<circle cx="560" cy="390" r="9" fill="#9a9a9a"/><text x="560" y="393.5" class="nb">6</text>
+<line x1="572" y1="438" x2="948" y2="438" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="430" class="lb">Notifikasi assignment baru</text>
+<circle cx="560" cy="438" r="9" fill="#9a9a9a"/><text x="560" y="441.5" class="nb">7</text>
+<line x1="938" y1="486" x2="562" y2="486" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="750.0" y="478" class="lb">Login</text>
+<circle cx="950" cy="486" r="9" fill="#9a9a9a"/><text x="950" y="489.5" class="nb">8</text>
+<line x1="572" y1="534" x2="948" y2="534" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="526" class="lb">Tampilkan daftar assignment</text>
+<circle cx="560" cy="534" r="9" fill="#9a9a9a"/><text x="560" y="537.5" class="nb">9</text>
+<line x1="938" y1="582" x2="562" y2="582" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="750.0" y="574" class="lb">Buka detail assignment</text>
+<circle cx="950" cy="582" r="9" fill="#9a9a9a"/><text x="950" y="585.5" class="nb">10</text>
+<line x1="572" y1="630" x2="948" y2="630" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="622" class="lb">Tampilkan instruksi dan deadline</text>
+<circle cx="560" cy="630" r="9" fill="#9a9a9a"/><text x="560" y="633.5" class="nb">11</text>
+<line x1="938" y1="678" x2="562" y2="678" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="750.0" y="670" class="lb">Unggah jawaban atau file</text>
+<circle cx="950" cy="678" r="9" fill="#9a9a9a"/><text x="950" y="681.5" class="nb">12</text>
+<path d="M572 726 H624 V752 H563" fill="none" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="636" y="743" class="cond">Validasi file dan deadline</text>
+<circle cx="560" cy="726" r="9" fill="#9a9a9a"/><text x="560" y="729.5" class="nb">13</text>
+<line x1="572" y1="840" x2="948" y2="840" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="832" class="lb">Submission berhasil disimpan</text>
+<circle cx="560" cy="840" r="9" fill="#9a9a9a"/><text x="560" y="843.5" class="nb">14</text>
+<line x1="548" y1="888" x2="172" y2="888" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="360.0" y="880" class="lb">Notifikasi submission baru</text>
+<circle cx="560" cy="888" r="9" fill="#9a9a9a"/><text x="560" y="891.5" class="nb">15</text>
+<line x1="572" y1="972" x2="948" y2="972" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="964" class="lb">Tampilkan kesalahan file</text>
+<circle cx="560" cy="972" r="9" fill="#9a9a9a"/><text x="560" y="975.5" class="nb">16</text>
+<line x1="572" y1="1056" x2="948" y2="1056" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="1048" class="lb">Submission ditolak atau ditandai terlambat</text>
+<circle cx="560" cy="1056" r="9" fill="#9a9a9a"/><text x="560" y="1059.5" class="nb">17</text>
+<line x1="938" y1="1182" x2="562" y2="1182" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="750.0" y="1174" class="lb">Unggah versi jawaban terbaru</text>
+<circle cx="950" cy="1182" r="9" fill="#9a9a9a"/><text x="950" y="1185.5" class="nb">18</text>
+<line x1="572" y1="1230" x2="948" y2="1230" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="1222" class="lb">Submission berhasil diperbarui</text>
+<circle cx="560" cy="1230" r="9" fill="#9a9a9a"/><text x="560" y="1233.5" class="nb">19</text>
+<line x1="182" y1="1304" x2="558" y2="1304" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="1296" class="lb">Buka daftar submission</text>
+<circle cx="170" cy="1304" r="9" fill="#9a9a9a"/><text x="170" y="1307.5" class="nb">20</text>
+<line x1="548" y1="1352" x2="172" y2="1352" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="360.0" y="1344" class="lb">Tampilkan submission student</text>
+<circle cx="560" cy="1352" r="9" fill="#9a9a9a"/><text x="560" y="1355.5" class="nb">21</text>
+<line x1="182" y1="1400" x2="558" y2="1400" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="1392" class="lb">Periksa jawaban</text>
+<circle cx="170" cy="1400" r="9" fill="#9a9a9a"/><text x="170" y="1403.5" class="nb">22</text>
+<line x1="182" y1="1448" x2="558" y2="1448" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="1440" class="lb">Masukkan nilai dan feedback</text>
+<circle cx="170" cy="1448" r="9" fill="#9a9a9a"/><text x="170" y="1451.5" class="nb">23</text>
+<line x1="182" y1="1496" x2="558" y2="1496" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="370.0" y="1488" class="lb">Publikasikan hasil penilaian</text>
+<circle cx="170" cy="1496" r="9" fill="#9a9a9a"/><text x="170" y="1499.5" class="nb">24</text>
+<line x1="548" y1="1544" x2="172" y2="1544" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="360.0" y="1536" class="lb">Penilaian berhasil disimpan</text>
+<circle cx="560" cy="1544" r="9" fill="#9a9a9a"/><text x="560" y="1547.5" class="nb">25</text>
+<line x1="572" y1="1592" x2="948" y2="1592" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="1584" class="lb">Notifikasi nilai tersedia</text>
+<circle cx="560" cy="1592" r="9" fill="#9a9a9a"/><text x="560" y="1595.5" class="nb">26</text>
+<line x1="938" y1="1640" x2="562" y2="1640" stroke="#d4d4d4" stroke-width="1.2" marker-end="url(#fill)"/>
+<text x="750.0" y="1632" class="lb">Buka hasil penilaian</text>
+<circle cx="950" cy="1640" r="9" fill="#9a9a9a"/><text x="950" y="1643.5" class="nb">27</text>
+<line x1="572" y1="1688" x2="948" y2="1688" stroke="#d4d4d4" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#open)"/>
+<text x="760.0" y="1680" class="lb">Tampilkan nilai dan feedback</text>
+<circle cx="560" cy="1688" r="9" fill="#9a9a9a"/><text x="560" y="1691.5" class="nb">28</text>
+<g stroke="#0b2a57" stroke-width="2.2" fill="#04152b"><circle cx="170" cy="30" r="10"/><path d="M170 40 V60 M156 48 H184 M170 60 L159 72 M170 60 L181 72" fill="none"/></g>
+<text x="170" y="88" class="pn" style="font-size:12px">Lecturer</text>
+<g stroke="#0b2a57" stroke-width="2.2" fill="#04152b"><circle cx="170" cy="1750" r="10"/><path d="M170 1760 V1780 M156 1768 H184 M170 1780 L159 1792 M170 1780 L181 1792" fill="none"/></g>
+<text x="170" y="1808" class="pn" style="font-size:12px">Lecturer</text>
+<rect x="494" y="30" width="132" height="44" fill="#04152b" stroke="#2f4a73" stroke-width="1.2"/>
+<text x="560" y="57" class="pn">LMS</text>
+<rect x="494" y="1750" width="132" height="44" fill="#04152b" stroke="#2f4a73" stroke-width="1.2"/>
+<text x="560" y="1777" class="pn">LMS</text>
+<g stroke="#0b2a57" stroke-width="2.2" fill="#04152b"><circle cx="950" cy="30" r="10"/><path d="M950 40 V60 M936 48 H964 M950 60 L939 72 M950 60 L961 72" fill="none"/></g>
+<text x="950" y="88" class="pn" style="font-size:12px">Student</text>
+<g stroke="#0b2a57" stroke-width="2.2" fill="#04152b"><circle cx="950" cy="1750" r="10"/><path d="M950 1760 V1780 M936 1768 H964 M950 1780 L939 1792 M950 1780 L961 1792" fill="none"/></g>
+<text x="950" y="1808" class="pn" style="font-size:12px">Student</text>
+</svg>

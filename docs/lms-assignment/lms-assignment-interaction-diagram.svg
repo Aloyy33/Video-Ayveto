@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="920" viewBox="0 0 1400 920" role="img" aria-labelledby="title desc">
+  <title id="title">Interaction Diagram LMS Assignment</title>
+  <desc id="desc">Diagram interaksi Lecturer dan Student dengan LMS pada proses assignment.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2ff"/>
+    </linearGradient>
+    <linearGradient id="lms" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrowPurple" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L12,6 L0,12 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L12,6 L0,12 z" fill="#059669"/>
+    </marker>
+    <style>
+      .font { font-family: Inter, Arial, sans-serif; }
+      .title { font-size: 32px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-size: 16px; fill: #64748b; }
+      .actor-title { font-size: 22px; font-weight: 700; fill: #0f172a; }
+      .actor-sub { font-size: 14px; fill: #64748b; }
+      .lms-title { font-size: 28px; font-weight: 700; fill: white; }
+      .lms-sub { font-size: 15px; fill: #e0e7ff; }
+      .step { font-size: 14px; font-weight: 600; fill: #1e293b; }
+      .number { font-size: 14px; font-weight: 700; fill: white; }
+      .legend { font-size: 14px; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="920" fill="url(#bg)"/>
+  <g class="font">
+    <text x="700" y="62" text-anchor="middle" class="title">Interaction Diagram — LMS Assignment</text>
+    <text x="700" y="91" text-anchor="middle" class="subtitle">Interaksi utama pada proses publikasi, pengumpulan, dan penilaian tugas</text>
+
+    <!-- Lecturer card -->
+    <g filter="url(#shadow)">
+      <rect x="70" y="338" width="270" height="220" rx="24" fill="#ffffff" stroke="#c7d2fe" stroke-width="2"/>
+    </g>
+    <circle cx="205" cy="393" r="27" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+    <circle cx="205" cy="384" r="8" fill="#6366f1"/>
+    <path d="M188 410 Q205 392 222 410" fill="#6366f1"/>
+    <text x="205" y="450" text-anchor="middle" class="actor-title">Lecturer</text>
+    <text x="205" y="478" text-anchor="middle" class="actor-sub" style="font-size:13px">Membuat &amp; menilai assignment</text>
+    <rect x="106" y="505" width="198" height="32" rx="16" fill="#eef2ff"/>
+    <text x="205" y="526" text-anchor="middle" font-size="13" font-weight="600" fill="#4f46e5">Pengajar / Dosen</text>
+
+    <!-- LMS card -->
+    <g filter="url(#shadow)">
+      <rect x="515" y="318" width="370" height="260" rx="32" fill="url(#lms)"/>
+    </g>
+    <rect x="653" y="354" width="94" height="70" rx="12" fill="#ffffff" fill-opacity="0.17" stroke="#ffffff" stroke-opacity="0.75" stroke-width="2"/>
+    <rect x="667" y="369" width="66" height="7" rx="3.5" fill="white"/>
+    <rect x="667" y="384" width="48" height="7" rx="3.5" fill="#c7d2fe"/>
+    <path d="M667 407 L681 393 L693 401 L708 383 L733 407 Z" fill="#a7f3d0"/>
+    <text x="700" y="468" text-anchor="middle" class="lms-title">LMS Assignment</text>
+    <text x="700" y="497" text-anchor="middle" class="lms-sub">Mengelola tugas, submission, nilai,</text>
+    <text x="700" y="519" text-anchor="middle" class="lms-sub">feedback, deadline, dan notifikasi</text>
+    <rect x="612" y="540" width="176" height="26" rx="13" fill="#ffffff" fill-opacity="0.16"/>
+    <text x="700" y="558" text-anchor="middle" font-size="12" font-weight="600" fill="white">Learning Management System</text>
+
+    <!-- Student card -->
+    <g filter="url(#shadow)">
+      <rect x="1060" y="338" width="270" height="220" rx="24" fill="#ffffff" stroke="#a7f3d0" stroke-width="2"/>
+    </g>
+    <circle cx="1195" cy="393" r="27" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+    <circle cx="1195" cy="384" r="8" fill="#059669"/>
+    <path d="M1178 410 Q1195 392 1212 410" fill="#059669"/>
+    <text x="1195" y="450" text-anchor="middle" class="actor-title">Student</text>
+    <text x="1195" y="478" text-anchor="middle" class="actor-sub" style="font-size:13px">Mengerjakan &amp; mengumpulkan tugas</text>
+    <rect x="1096" y="505" width="198" height="32" rx="16" fill="#ecfdf5"/>
+    <text x="1195" y="526" text-anchor="middle" font-size="13" font-weight="600" fill="#047857">Pelajar / Mahasiswa</text>
+
+    <!-- Lecturer to LMS interactions -->
+    <path d="M340 370 C410 300 455 300 515 355" fill="none" stroke="#6366f1" stroke-width="3" marker-end="url(#arrowPurple)"/>
+    <rect x="330" y="255" width="205" height="38" rx="19" fill="#ffffff" stroke="#c7d2fe"/>
+    <circle cx="349" cy="274" r="12" fill="#6366f1"/>
+    <text x="349" y="279" text-anchor="middle" class="number">1</text>
+    <text x="368" y="279" class="step">Buat &amp; publikasikan</text>
+
+    <path d="M515 505 C455 575 410 584 340 525" fill="none" stroke="#6366f1" stroke-width="3" stroke-dasharray="8 7" marker-end="url(#arrowPurple)"/>
+    <rect x="335" y="598" width="210" height="38" rx="19" fill="#ffffff" stroke="#c7d2fe"/>
+    <circle cx="354" cy="617" r="12" fill="#6366f1"/>
+    <text x="354" y="622" text-anchor="middle" class="number">4</text>
+    <text x="373" y="622" class="step">Notifikasi submission</text>
+
+    <path d="M340 465 C413 465 445 465 515 465" fill="none" stroke="#6366f1" stroke-width="3" marker-end="url(#arrowPurple)"/>
+    <rect x="347" y="414" width="160" height="38" rx="19" fill="#ffffff" stroke="#c7d2fe"/>
+    <circle cx="366" cy="433" r="12" fill="#6366f1"/>
+    <text x="366" y="438" text-anchor="middle" class="number">5</text>
+    <text x="385" y="438" class="step">Nilai &amp; feedback</text>
+
+    <!-- LMS / Student interactions -->
+    <path d="M885 355 C945 300 990 300 1060 370" fill="none" stroke="#059669" stroke-width="3" marker-end="url(#arrowGreen)"/>
+    <rect x="865" y="255" width="215" height="38" rx="19" fill="#ffffff" stroke="#a7f3d0"/>
+    <circle cx="884" cy="274" r="12" fill="#059669"/>
+    <text x="884" y="279" text-anchor="middle" class="number">2</text>
+    <text x="903" y="279" class="step">Tampilkan assignment</text>
+
+    <path d="M1060 465 C987 465 955 465 885 465" fill="none" stroke="#059669" stroke-width="3" marker-end="url(#arrowGreen)"/>
+    <rect x="892" y="414" width="160" height="38" rx="19" fill="#ffffff" stroke="#a7f3d0"/>
+    <circle cx="911" cy="433" r="12" fill="#059669"/>
+    <text x="911" y="438" text-anchor="middle" class="number">3</text>
+    <text x="930" y="438" class="step">Kirim submission</text>
+
+    <path d="M885 505 C945 575 990 584 1060 525" fill="none" stroke="#059669" stroke-width="3" stroke-dasharray="8 7" marker-end="url(#arrowGreen)"/>
+    <rect x="887" y="598" width="178" height="38" rx="19" fill="#ffffff" stroke="#a7f3d0"/>
+    <circle cx="906" cy="617" r="12" fill="#059669"/>
+    <text x="906" y="622" text-anchor="middle" class="number">6</text>
+    <text x="925" y="622" class="step">Nilai tersedia</text>
+
+    <!-- Process strip -->
+    <rect x="105" y="720" width="1190" height="112" rx="24" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <text x="145" y="756" font-size="14" font-weight="700" fill="#64748b">ALUR UTAMA</text>
+    <g>
+      <rect x="145" y="778" width="175" height="34" rx="17" fill="#eef2ff"/><text x="232" y="800" text-anchor="middle" class="step">Publikasi tugas</text>
+      <path d="M332 795 H372" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowPurple)"/>
+      <rect x="388" y="778" width="175" height="34" rx="17" fill="#ecfdf5"/><text x="475" y="800" text-anchor="middle" class="step">Lihat tugas</text>
+      <path d="M575 795 H615" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowPurple)"/>
+      <rect x="631" y="778" width="175" height="34" rx="17" fill="#ecfdf5"/><text x="718" y="800" text-anchor="middle" class="step">Kirim jawaban</text>
+      <path d="M818 795 H858" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowPurple)"/>
+      <rect x="874" y="778" width="175" height="34" rx="17" fill="#eef2ff"/><text x="961" y="800" text-anchor="middle" class="step">Penilaian</text>
+      <path d="M1061 795 H1101" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowPurple)"/>
+      <rect x="1117" y="778" width="138" height="34" rx="17" fill="#f5f3ff"/><text x="1186" y="800" text-anchor="middle" class="step">Hasil</text>
+    </g>
+
+    <circle cx="108" cy="875" r="6" fill="#6366f1"/><text x="122" y="880" class="legend">Interaksi Lecturer</text>
+    <circle cx="276" cy="875" r="6" fill="#059669"/><text x="290" y="880" class="legend">Interaksi Student</text>
+    <line x1="450" y1="875" x2="490" y2="875" stroke="#64748b" stroke-width="2" stroke-dasharray="7 6"/><text x="502" y="880" class="legend">Notifikasi dari LMS</text>
+  </g>
+</svg>
