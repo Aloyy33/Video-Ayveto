@@ -1,0 +1,6 @@
+# >100 MB master render (GitHub limit) — use the _HD.mp4 instead
+AYVETO_System_Error_Intro.mp4
+previews/
+audio.wav
+.venv/
+__pycache__/
