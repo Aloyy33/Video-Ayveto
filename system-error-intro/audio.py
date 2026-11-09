@@ -114,11 +114,7 @@ add(beep, 2.6, 0, 0.12)
 
 # ---------------------------------------------------------------- scene 2 (3-7)
 # match popups timing from render.py
-pop_t, tt0, gap = [], 3.05, 0.42
-while tt0 < 6.97:
-    pop_t.append(tt0)
-    tt0 += gap
-    gap = max(0.045, gap * 0.84)
+pop_t = [3.05, 3.55, 3.95, 4.3, 4.6, 5.0, 5.35, 5.7, 6.05, 6.4]  # = render.make_popups times
 for j, st in enumerate(pop_t):
     k = (st - 3.0) / 4.0
     f = [880, 660, 990, 587, 740][j % 5]

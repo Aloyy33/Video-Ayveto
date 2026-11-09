@@ -39,16 +39,16 @@ def font(name, size, variation=None):
     return f
 
 
-F_MONO_S = font("ShareTechMono.ttf", 20)
-F_MONO = font("ShareTechMono.ttf", 24)
+F_MONO_S = font("ShareTechMono.ttf", 22)
+F_MONO = font("ShareTechMono.ttf", 25)
 F_MONO_L = font("ShareTechMono.ttf", 34)
-F_ORB_S = font("Orbitron.ttf", 22, "Medium")
-F_ORB = font("Orbitron.ttf", 30, "SemiBold")
-F_ORB_POP = font("Orbitron.ttf", 40, "Bold")
-F_ORB_XL = font("Orbitron.ttf", 92, "Black")
+F_ORB_S = font("Orbitron.ttf", 22, "SemiBold")
+F_ORB = font("Orbitron.ttf", 30, "Bold")
+F_ORB_POP = font("Orbitron.ttf", 38, "Bold")
+F_ORB_XL = font("Orbitron.ttf", 88, "Black")
 F_WORD = font("Orbitron.ttf", 104, "Bold")
-F_LINE = font("Rajdhani-Light.ttf", 74)
-F_TAG = font("Rajdhani-Light.ttf", 40)
+F_LINE = font("Rajdhani-SemiBold.ttf", 76)
+F_TAG = font("Rajdhani-SemiBold.ttf", 40)
 
 
 def clamp(x, a=0.0, b=1.0):
@@ -170,13 +170,13 @@ def glitch(frame, k, rng, slices=True):
     if k <= 0:
         return out
     if slices:
-        for _ in range(int(2 + k * 14)):
+        for _ in range(int(1 + k * 8)):
             if rng.random() < 0.15 + 0.85 * k:
                 y = int(rng.integers(0, H - 4))
                 h = int(rng.integers(3, int(8 + k * 110)))
                 dx = int(rng.normal(0, 1) * k * 180)
                 out[y:y + h] = np.roll(out[y:y + h], dx, axis=1)
-        for _ in range(int(k * 8)):
+        for _ in range(int(k * 4)):
             bw, bh = int(rng.integers(40, 340)), int(rng.integers(8, 90))
             x, y = int(rng.integers(0, W - bw)), int(rng.integers(0, H - bh))
             sx, sy = int(rng.integers(0, W - bw)), int(rng.integers(0, H - bh))
@@ -188,10 +188,11 @@ def glitch(frame, k, rng, slices=True):
             y = int(rng.integers(H // 5, 4 * H // 5))
             out[y:] = np.roll(out[y:], int(rng.normal(0, 1) * 120 * k), axis=1)
             out[y:] = np.roll(out[y:], int(rng.integers(-40, 40) * k), axis=0)
-    dx = int(k * rng.uniform(4, 26)) + 1
-    out[..., 0] = np.roll(out[..., 0], dx, axis=1)
-    out[..., 2] = np.roll(out[..., 2], -dx, axis=1)
-    return out
+    # monochrome-blue ghost instead of RGB split (keeps the palette blue/white)
+    dx = int(k * rng.uniform(4, 18)) + 1
+    lum = out.mean(axis=2, keepdims=True)
+    ghost = np.roll(lum, dx, axis=1) * np.array([0.15, 0.45, 1.0], np.float32)
+    return np.maximum(out, ghost * (0.35 + 0.4 * k))
 
 
 def finish(frame, i, grain=5.0, scan=True):
@@ -226,22 +227,20 @@ MESSAGES = ["ACCESS DENIED", "SYSTEM FAILURE", "CARD NOT DETECTED", "AUTHENTICAT
 def make_popups():
     rng = np.random.default_rng(42)
     pops = []
-    fixed = [(250, 170), (1080, 250), (180, 640), (1010, 700), (600, 420)]
-    t, gap, n = 3.05, 0.42, 0
-    while t < 6.97:
-        msg = MESSAGES[n % 5] if n < 5 else MESSAGES[int(rng.integers(0, 5))]
+    # fixed, balanced slots so the chaos stays readable and composed
+    slots = [(230, 180), (1110, 240), (170, 660), (1050, 690), (620, 430),
+             (1130, 470), (140, 420), (640, 760), (700, 140), (1100, 840)]
+    times = [3.05, 3.55, 3.95, 4.3, 4.6, 5.0, 5.35, 5.7, 6.05, 6.4]
+    for n, t in enumerate(times):
+        msg = MESSAGES[n % 5]
         w = int(max(560, F_ORB_POP.getlength(msg) + 90))
-        h = 172
-        if n < 5:
-            x, y = fixed[n]
-        else:
-            x = int(rng.integers(-80, W - w + 80))
-            y = int(rng.integers(40, H - h - 20))
-        pops.append(dict(t=t, msg=msg, x=x, y=y, w=w, h=h, code=int(rng.integers(0, 0xFFFF)), n=n))
-        t += gap
-        gap = max(0.045, gap * 0.84)
-        n += 1
+        x, y = slots[n]
+        x = min(x, W - w - 40)
+        pops.append(dict(t=t, msg=msg, x=x, y=y, w=w, h=172, code=int(rng.integers(0, 0xFFFF)), n=n))
     return pops
+
+
+MAX_VISIBLE_POPUPS = 5
 
 
 POPUPS = make_popups()
@@ -401,7 +400,6 @@ def scene_system(t, i):
             card[r0:r0 + 6] = np.roll(card[r0:r0 + 6], shift[r0], axis=1)
         if rng.random() < 0.35 * k:
             card_alpha *= rng.uniform(0.0, 0.4)  # card "not detected"
-        card[..., 0] = np.roll(card[..., 0], int(10 * k), axis=1)
     comp(frame, card, int(cx - CARD_W / 2), int(cy - CARD_H / 2), card_alpha)
 
     comp(frame, hud_layer(t, k, rng))
@@ -415,10 +413,9 @@ def scene_system(t, i):
     if t >= 3.0:
         pop = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         pd = ImageDraw.Draw(pop)
-        for p in POPUPS:
+        shown = [p for p in POPUPS if p["t"] <= t][-MAX_VISIBLE_POPUPS:]
+        for p in shown:
             age = t - p["t"]
-            if age < 0:
-                continue
             x, y, w, h = p["x"], p["y"], p["w"], p["h"]
             if rng.random() < 0.12 * k:
                 continue  # flicker out
@@ -452,17 +449,16 @@ def scene_system(t, i):
 
     # camera: slow digital push-in, shake in scene 2
     scale = 1.0 + 0.06 * ease_io(t / 7.0)
-    sh = 14 * k * k
-    if t >= 3.0 and rng.random() < 0.2:  # sudden zoom punch
-        scale += 0.04 * k
+    sh = 8 * k * k
+    if t >= 3.0 and rng.random() < 0.12:  # occasional zoom punch
+        scale += 0.025 * k
     frame = camera(frame, scale, rng.normal(0, 1) * sh, rng.normal(0, 1) * sh)
 
     if t >= 3.0:
-        frame = glitch(frame, k, rng)
-        if rng.random() < 0.22 * k:
-            frame *= rng.uniform(0.15, 0.6)  # flicker
-        if rng.random() < 0.05 * k:
-            frame = 255 - frame  # inverted flash
+        frame = glitch(frame, 0.6 * k, rng)  # restrained, keeps text readable
+        if rng.random() < 0.15 * k:
+            frame *= rng.uniform(0.25, 0.6)  # flicker
+
         if rng.random() < 0.18 * k:  # split screen
             off = int(rng.integers(30, 160))
             frame = np.maximum(frame * 0.7, np.roll(frame, off, axis=0) * 0.6)
@@ -568,13 +564,13 @@ def logo_layer(t, rng):
 
     fill_a = ease_io((t - 12.4) / 0.6)
     if fill_a > 0:
-        d.ellipse((c - R, c - R, c + R, c + R), fill=(30, 80, 200, int(45 * fill_a)))
+        d.ellipse((c - R, c - R, c + R, c + R), fill=(20, 50, 130, int(18 * fill_a)))
     tips = []
     for pts, t0, t1 in LOGO:
         f = ease_io((t - t0) / (t1 - t0))
         seg = partial(pts, f)
         if len(seg) >= 2:
-            d.line([P(p) for p in seg], fill=(215, 232, 255, 255), width=4 * SS, joint="curve")
+            d.line([P(p) for p in seg], fill=(215, 232, 255, 255), width=5 * SS, joint="curve")
             if f < 1:
                 tips.append(P(seg[-1]))
     for (x, y) in tips:  # bright drawing tips
@@ -603,13 +599,13 @@ def scene_reveal(t, i):
     glow = np.exp(-((RADIAL - 0) / rad) ** 2)[..., None]
     lc = (LOGO_CY - H / 2)
     glow2 = np.exp(-(((XX - W / 2) / 900) ** 2 + ((YY - H / 2 - lc) / 330) ** 2))[..., None]
-    frame += glow * np.array([5, 24, 85], np.float32) * level + glow2 * np.array([2, 7, 22], np.float32) * grow
+    frame += glow * np.array([4, 18, 62], np.float32) * level + glow2 * np.array([1, 3, 10], np.float32) * grow
     # anamorphic streak
     st = clamp(1 - abs(lt - 0.35) / 0.45)
     if st > 0:
         sw = 200 + 1600 * ease_out(lt / 0.6)
         streak = np.exp(-((YY - H / 2) / 3) ** 2 - ((XX - W / 2) / (sw / 2)) ** 2)[..., None]
-        frame += streak * np.array([120, 190, 255], np.float32) * st * 1.6
+        frame += streak * np.array([90, 150, 230], np.float32) * st * 1.1
 
     # logo (holographic draw-on)
     logo = logo_layer(t, rng)
@@ -619,10 +615,10 @@ def scene_reveal(t, i):
     # wordmark + tagline
     txt = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(txt)
-    wa = ease_out((t - 13.0) / 0.12)
+    wa = ease_io((t - 13.0) / 0.5)  # emerges from the dark instead of popping
     if wa > 0:
-        trk = 26 + 50 * (1 - ease_out((t - 13.0) / 0.7))
-        tracked(d, 960, 745, "AYVETO", F_WORD, lambda j: (255, 255, 255, int(255 * wa)), trk)
+        trk = 26 + 30 * (1 - ease_out((t - 13.0) / 1.2))
+        tracked(d, 960, 745, "AYVETO", F_WORD, lambda j: (235, 242, 255, int(240 * wa)), trk)
     ta = ease_io((t - 13.45) / 0.55)
     if ta > 0:
         tw = tracked(d, 960, 832, "WALK IN. NO TAPPING.", F_TAG, lambda j: (175, 205, 255, int(255 * ta)), 12)
@@ -632,18 +628,17 @@ def scene_reveal(t, i):
             d.line((x0, 834, x0 + sgn * ll, 834), fill=(60, 130, 255, int(200 * ta)), width=2)
     comp(frame, txt)
 
-    # impact flash
+    # impact: no bright flash, only a faint cold pulse around the logo
     if t >= 13.0:
-        fl = math.exp(-(t - 13.0) / 0.12)
-        frame += np.array([90, 150, 255], np.float32) * fl * 0.9
-        frame += np.exp(-((RADIAL) / 700) ** 2)[..., None] * np.array([40, 90, 220], np.float32) * fl
+        fl = math.exp(-(t - 13.0) / 0.35)
+        frame += np.exp(-((RADIAL) / 500) ** 2)[..., None] * np.array([4, 14, 45], np.float32) * fl
 
-    frame = bloom(frame, 0.5, 16, tint=(0.6, 0.8, 1.0))
+    frame = bloom(frame, 0.32, 16, tint=(0.6, 0.8, 1.0))
 
-    # camera: slight push into the logo, kick on impact
-    scale = 1.06 - 0.06 * ease_out((t - 11.0) / 2.0)
+    # camera: slow push into the logo, tiny kick on impact
+    scale = 1.06 - 0.06 * ease_out((t - 11.0) / 2.5)
     if t >= 13.0:
-        scale += 0.025 * math.exp(-(t - 13.0) / 0.15)
+        scale += 0.008 * math.exp(-(t - 13.0) / 0.2)
     frame = camera(frame, scale)
 
     # elegant glitches
